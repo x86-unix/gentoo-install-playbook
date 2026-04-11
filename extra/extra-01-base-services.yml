@@ -2,7 +2,7 @@
 # Install essential system services
 # Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
 
-- name: "Extra: Base services (cronie, bind-tools, netcat, vim, eix)"
+- name: "Extra: Base services (cronie, bind-tools, netcat, vim)"
   hosts: target
   gather_facts: false
 
@@ -23,8 +23,5 @@
         enabled: true
         state: started
 
-    - name: Install bind-tools, netcat, vim and eix
-      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-editors/vim app-portage/eix
-
-    - name: Update eix database
-      ansible.builtin.command: eix-update
+    - name: Install bind-tools, netcat and vim
+      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-editors/vim

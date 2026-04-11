@@ -1,5 +1,5 @@
 ---
-# Switch portage sync to git and run emaint sync
+# Switch portage sync to git and run eix-sync
 # Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
 
 - name: "Extra: Switch portage sync to git"
@@ -35,6 +35,9 @@
         rm -rf /var/db/repos/gentoo
       changed_when: false
 
-    - name: Sync portage tree
-      ansible.builtin.command: emaint sync -a
+    - name: Install eix
+      ansible.builtin.command: emerge --noreplace app-portage/eix
+
+    - name: Sync portage tree and update eix database
+      ansible.builtin.command: eix-sync
       when: repos_conf.changed
