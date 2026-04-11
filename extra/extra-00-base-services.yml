@@ -23,5 +23,5 @@
         enabled: true
         state: started
 
-    - name: Install bind-tools and netcat
-      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat
+    - name: Install bind-tools, netcat and vim
+      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-editors/vim
