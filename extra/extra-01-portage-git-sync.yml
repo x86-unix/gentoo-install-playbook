@@ -29,6 +29,12 @@
           sync-git-verify-commit-signature = no
       register: repos_conf
 
+    - name: Remove non-git portage tree if exists
+      ansible.builtin.shell: |
+        [ -d /var/db/repos/gentoo/.git ] && exit 0
+        rm -rf /var/db/repos/gentoo
+      changed_when: false
+
     - name: Sync portage tree
       ansible.builtin.command: emaint sync -a
       when: repos_conf.changed
