@@ -1,0 +1,45 @@
+---
+# Base Gentoo installation - minimal bootable system
+# Usage: ansible-playbook -i inventory.ini site.yml -e ansible_ssh_pass=rescue
+
+- name: Confirm before installation
+  hosts: target
+  gather_facts: false
+  vars_prompt:
+    - name: confirm_run
+      prompt: "\nThis will DESTROY all data on the target disk and install Gentoo. Type 'yes' to proceed, or 'no' to keep existing disk"
+      private: false
+  tasks:
+    - name: Abort if cancelled
+      ansible.builtin.fail:
+        msg: "Aborted by user."
+      when: confirm_run not in ['yes', 'no']
+
+    - name: Set destroy flag
+      ansible.builtin.set_fact:
+        default_confirm_destroy: "{{ confirm_run }}"
+        cacheable: true
+
+- name: Import preflight
+  ansible.builtin.import_playbook: 00-preflight.yml
+
+- name: Import disk setup
+  ansible.builtin.import_playbook: 01-disk-setup.yml
+
+- name: Import stage3
+  ansible.builtin.import_playbook: 02-stage3.yml
+
+- name: Import portage
+  ansible.builtin.import_playbook: 03-portage.yml
+
+- name: Import system config
+  ansible.builtin.import_playbook: 04-system.yml
+
+- name: Import kernel build
+  ansible.builtin.import_playbook: 05-kernel.yml
+
+- name: Import bootloader
+  ansible.builtin.import_playbook: 06-bootloader.yml
+
+- name: Import finalize
+  ansible.builtin.import_playbook: 07-finalize.yml

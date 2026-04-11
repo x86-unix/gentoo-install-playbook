@@ -1,0 +1,96 @@
+---
+- name: "Stage3: Download and extract"
+  hosts: target
+  gather_facts: false
+
+  vars:
+    gentoo_mirror: https://distfiles.gentoo.org
+    init_system: systemd
+    mountpoint: /mnt/gentoo
+
+  tasks:
+    - name: Detect architecture
+      ansible.builtin.command: uname -m
+      register: uname_result
+      changed_when: false
+
+    - name: Set arch facts
+      ansible.builtin.set_fact:
+        gentoo_arch: "{{ 'amd64' if uname_result.stdout == 'x86_64' else uname_result.stdout }}"
+
+    - name: Set stage3 vars
+      ansible.builtin.set_fact:
+        stage3_base: "{{ gentoo_mirror }}/releases/{{ gentoo_arch }}/autobuilds"
+        stage3_flavor: "stage3-{{ gentoo_arch }}-{{ init_system }}"
+
+    - name: Check if stage3 already extracted
+      ansible.builtin.stat:
+        path: "{{ mountpoint }}/usr/bin/emerge"
+      register: stage3_check
+
+    - name: Download and extract stage3
+      when: not stage3_check.stat.exists
+      block:
+        - name: Get latest stage3 path
+          ansible.builtin.shell: >
+            curl -sL {{ stage3_base }}/latest-{{ stage3_flavor }}.txt
+            | grep -v '^#' | grep '\.tar\.xz' | head -1 | awk '{print $1}'
+          register: stage3_path
+          changed_when: false
+
+        - name: Show stage3 to download
+          ansible.builtin.debug:
+            msg: "Downloading: {{ stage3_base }}/{{ stage3_path.stdout }}"
+
+        - name: Download stage3 tarball
+          ansible.builtin.get_url:
+            url: "{{ stage3_base }}/{{ stage3_path.stdout }}"
+            dest: "{{ mountpoint }}/stage3.tar.xz"
+            timeout: 300
+
+        - name: Extract stage3
+          ansible.builtin.command: >
+            tar xpf {{ mountpoint }}/stage3.tar.xz
+            --xattrs-include='*.*' --numeric-owner
+            -C {{ mountpoint }}
+
+        - name: Remove stage3 tarball
+          ansible.builtin.file:
+            path: "{{ mountpoint }}/stage3.tar.xz"
+            state: absent
+
+    - name: Copy resolv.conf
+      ansible.builtin.copy:
+        src: /etc/resolv.conf
+        dest: "{{ mountpoint }}/etc/resolv.conf"
+        remote_src: true
+        mode: "0644"
+
+    - name: Bind mount pseudo filesystems
+      ansible.builtin.shell: |
+        mountpoint -q {{ mountpoint }}{{ item.dst }} && exit 0
+        mkdir -p {{ mountpoint }}{{ item.dst }}
+        mount {{ item.opts }} {{ item.src }} {{ mountpoint }}{{ item.dst }}
+      loop:
+        - { src: /proc, dst: /proc, opts: "--types proc" }
+        - { src: /sys, dst: /sys, opts: "--rbind" }
+        - { src: /dev, dst: /dev, opts: "--rbind" }
+        - { src: /run, dst: /run, opts: "--rbind" }
+      loop_control:
+        label: "{{ item.dst }}"
+      changed_when: false
+
+    - name: Make /dev/shm a proper tmpfs
+      ansible.builtin.shell: |
+        mountpoint -q {{ mountpoint }}/dev/shm && exit 0
+        mount -t tmpfs tmpfs {{ mountpoint }}/dev/shm
+      changed_when: false
+
+    - name: Verify chroot is ready
+      ansible.builtin.command: chroot {{ mountpoint }} /bin/bash -c "emerge --version"
+      changed_when: false
+      register: emerge_ver
+
+    - name: Show emerge version
+      ansible.builtin.debug:
+        var: emerge_ver.stdout_lines

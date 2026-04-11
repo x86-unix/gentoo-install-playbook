@@ -1,0 +1,69 @@
+---
+- name: "Finalize: root password, SSH, unmount, reboot"
+  hosts: target
+  gather_facts: false
+
+  vars:
+    mountpoint: /mnt/gentoo
+    chroot: "chroot {{ mountpoint }} /bin/bash -c"
+
+  tasks:
+    # --- Relax password policy ---
+    - name: Relax passwdqc policy
+      ansible.builtin.lineinfile:
+        path: "{{ mountpoint }}/etc/security/passwdqc.conf"
+        regexp: '^enforce='
+        line: 'enforce=none'
+
+    # --- Root password ---
+    - name: Set root password
+      ansible.builtin.shell: >
+        echo 'root:{{ default_root_password }}' | {{ chroot }} 'chpasswd'
+      no_log: true
+
+    # --- SSH ---
+    - name: Install SSH server
+      ansible.builtin.command: "{{ chroot }} 'emerge --noreplace net-misc/openssh'"
+      register: ssh_emerge
+      changed_when: "'Installing' in ssh_emerge.stdout"
+
+    - name: Enable sshd
+      ansible.builtin.command: "{{ chroot }} 'systemctl enable sshd'"
+      register: sshd_enable
+      changed_when: "'Created symlink' in (sshd_enable.stdout + sshd_enable.stderr)"
+
+    - name: Allow root login via SSH (initial setup)
+      ansible.builtin.lineinfile:
+        path: "{{ mountpoint }}/etc/ssh/sshd_config"
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin yes'
+
+    # --- Set ZFS boot dataset ---
+    - name: Set bootfs property
+      ansible.builtin.command: zpool set bootfs=rpool/ROOT/gentoo rpool
+      changed_when: false
+
+    # --- Regenerate zpool.cache before reboot ---
+    - name: Regenerate zpool.cache
+      ansible.builtin.shell: |
+        zpool set cachefile=/etc/zfs/zpool.cache rpool
+        cp /etc/zfs/zpool.cache {{ mountpoint }}/etc/zfs/zpool.cache
+      changed_when: false
+
+    # --- Unmount and export ---
+    - name: Unmount and export
+      ansible.builtin.shell: |
+        umount -l {{ mountpoint }}/dev/shm 2>/dev/null || true
+        umount -l {{ mountpoint }}/dev 2>/dev/null || true
+        umount -l {{ mountpoint }}/run 2>/dev/null || true
+        umount -l {{ mountpoint }}/sys 2>/dev/null || true
+        umount -l {{ mountpoint }}/proc 2>/dev/null || true
+        umount {{ mountpoint }}/boot/efi 2>/dev/null || true
+        swapoff -a 2>/dev/null || true
+        zfs unmount -a 2>/dev/null || true
+        zpool export -f rpool 2>/dev/null || true
+      changed_when: false
+
+    - name: Reboot into new system
+      ansible.builtin.shell: "nohup sh -c 'sleep 2 && echo b > /proc/sysrq-trigger' &"
+      changed_when: false

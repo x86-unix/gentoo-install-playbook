@@ -1,0 +1,14 @@
+---
+# Disk
+default_target_disk: sda
+default_confirm_destroy: "no"
+
+# System
+default_timezone: Asia/Tokyo
+default_hostname: zfs-gentoo
+
+# Portage
+use_flags: "zfs -X -wayland -gtk -qt5 -qt6"
+
+# Root password (change before running)
+default_root_password: root

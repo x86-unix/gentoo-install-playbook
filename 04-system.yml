@@ -1,0 +1,123 @@
+---
+- name: "System: Configure timezone, locale, network, fstab"
+  hosts: target
+  gather_facts: false
+
+  vars:
+    mountpoint: /mnt/gentoo
+    chroot: "chroot {{ mountpoint }} /bin/bash -c"
+
+  tasks:
+    # --- NIC detection ---
+    - name: Detect primary NIC
+      ansible.builtin.shell: |
+        ip -o link show | awk -F': ' '!/lo|docker|veth|br-/{print $2}' | head -1
+      register: detected_nic
+      changed_when: false
+
+    - name: Set NIC match pattern
+      ansible.builtin.set_fact:
+        nic_match: "{{ detected_nic.stdout | regex_replace('[0-9].*$', '*') }}"
+
+    - name: Show settings
+      ansible.builtin.debug:
+        msg:
+          - "Timezone: {{ default_timezone }}"
+          - "Hostname: {{ default_hostname }}"
+          - "NIC match: {{ nic_match }}"
+
+    # --- Timezone ---
+    - name: Set timezone
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/timezone"
+        content: "{{ default_timezone }}\n"
+        mode: "0644"
+
+    - name: Link localtime
+      ansible.builtin.file:
+        src: "/usr/share/zoneinfo/{{ default_timezone }}"
+        dest: "{{ mountpoint }}/etc/localtime"
+        state: link
+        force: true
+        follow: false
+
+    # --- Locale ---
+    - name: Configure locale.gen
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/locale.gen"
+        mode: "0644"
+        content: |
+          en_US.UTF-8 UTF-8
+          ja_JP.UTF-8 UTF-8
+
+    - name: Check if locales already generated
+      ansible.builtin.shell: "{{ chroot }} 'locale -a 2>/dev/null | grep -c en_US.utf8'"
+      register: locale_check
+      changed_when: false
+      failed_when: false
+
+    - name: Generate locales
+      ansible.builtin.command: "{{ chroot }} 'locale-gen'"
+      when: locale_check.stdout | default('0') | int == 0
+
+    - name: Set default locale
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/locale.conf"
+        content: "LANG=en_US.UTF-8\n"
+        mode: "0644"
+
+    # --- Hostname ---
+    - name: Set hostname
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/hostname"
+        content: "{{ default_hostname }}\n"
+        mode: "0644"
+
+    # --- Network (systemd-networkd + DHCP) ---
+    - name: Ensure systemd network directory
+      ansible.builtin.file:
+        path: "{{ mountpoint }}/etc/systemd/network"
+        state: directory
+        mode: "0755"
+
+    - name: Create DHCP network config
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/systemd/network/20-wired.network"
+        mode: "0644"
+        content: |
+          [Match]
+          Name={{ nic_match }}
+
+          [Network]
+          DHCP=yes
+
+    - name: Enable systemd-networkd in chroot
+      ansible.builtin.command: "{{ chroot }} 'systemctl enable systemd-networkd'"
+      register: networkd_enable
+      changed_when: "'Created symlink' in networkd_enable.stdout + networkd_enable.stderr"
+
+    - name: Enable systemd-resolved in chroot
+      ansible.builtin.command: "{{ chroot }} 'systemctl enable systemd-resolved'"
+      register: resolved_enable
+      changed_when: "'Created symlink' in resolved_enable.stdout + resolved_enable.stderr"
+
+    # --- fstab ---
+    - name: Detect target disk
+      ansible.builtin.shell: >
+        zpool status rpool | awk '/ONLINE/ && !/state|rpool/{print $1}' | head -1 | sed 's/p\?[0-9]*$//'
+      register: zpool_disk
+      changed_when: false
+
+    - name: Set disk facts
+      ansible.builtin.set_fact:
+        disk_dev: "/dev/{{ zpool_disk.stdout }}"
+        part_suffix: "{{ 'p' if 'nvme' in zpool_disk.stdout else '' }}"
+
+    - name: Write fstab
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/fstab"
+        mode: "0644"
+        content: |
+          # /etc/fstab - ZFS datasets are mounted by ZFS, not fstab
+          # Only non-ZFS filesystems need entries here
+          {{ disk_dev }}{{ part_suffix }}2  none  swap  sw  0 0
