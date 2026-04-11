@@ -76,11 +76,11 @@
       changed_when: false
 
     - name: Copy cachefile to chroot
-      ansible.builtin.copy:
-        src: /etc/zfs/zpool.cache
-        dest: "{{ mountpoint }}/etc/zfs/zpool.cache"
-        remote_src: true
-        mode: "0644"
+      ansible.builtin.shell: |
+        cmp -s /etc/zfs/zpool.cache {{ mountpoint }}/etc/zfs/zpool.cache && exit 0
+        cp /etc/zfs/zpool.cache {{ mountpoint }}/etc/zfs/zpool.cache
+      register: cachefile_copy
+      changed_when: cachefile_copy.rc == 0 and 'cp' in (cachefile_copy.stdout | default(''))
 
     # --- Install GRUB to disk ---
     - name: Check if GRUB is installed (BIOS)

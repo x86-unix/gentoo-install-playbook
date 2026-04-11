@@ -16,6 +16,7 @@
       ansible.builtin.shell: >
         echo 'root:{{ default_root_password }}' | {{ chroot }} 'chpasswd'
       no_log: true
+      changed_when: false
 
     # --- SSH ---
     - name: Install SSH server
@@ -46,7 +47,12 @@
         cp /etc/zfs/zpool.cache {{ mountpoint }}/etc/zfs/zpool.cache
       changed_when: false
 
-    # --- Unmount and export ---
+    - name: Confirm reboot
+      ansible.builtin.pause:
+        prompt: "\n\e[1;32mInstallation complete.\e[0m Type \e[1;32myes\e[0m to reboot now, or anything else to skip"
+      register: reboot_prompt
+
+    # --- Unmount and reboot (only if user confirmed) ---
     - name: Unmount and export
       ansible.builtin.shell: |
         umount -l {{ mountpoint }}/dev/shm 2>/dev/null || true
@@ -59,7 +65,9 @@
         zfs unmount -a 2>/dev/null || true
         zpool export -f rpool 2>/dev/null || true
       changed_when: false
+      when: reboot_prompt.user_input == 'yes'
 
     - name: Reboot into new system
       ansible.builtin.shell: "nohup sh -c 'sleep 2 && echo b > /proc/sysrq-trigger' &"
       changed_when: false
+      when: reboot_prompt.user_input == 'yes'
