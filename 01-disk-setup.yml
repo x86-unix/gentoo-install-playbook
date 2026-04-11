@@ -1,0 +1,209 @@
+---
+# Play 1: Gather info and show to user
+- name: "Phase 1: Detect boot mode and list disks"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Detect UEFI or BIOS
+      ansible.builtin.stat:
+        path: /sys/firmware/efi
+      register: efi_check
+
+    - name: Set boot mode
+      ansible.builtin.set_fact:
+        boot_mode: "{{ 'uefi' if efi_check.stat.exists else 'bios' }}"
+
+    - name: Show boot mode
+      ansible.builtin.debug:
+        msg: "Detected boot mode: {{ boot_mode }}"
+
+    - name: Gather disk list
+      ansible.builtin.shell: lsblk -d -n -o NAME,SIZE,TYPE,MODEL | grep -E '^(sd|nvme|vd)'
+      changed_when: false
+      register: disk_list
+
+    - name: Show available disks
+      ansible.builtin.debug:
+        msg: "{{ item }}"
+      loop: "{{ disk_list.stdout_lines }}"
+
+# Play 2: Partition and create ZFS
+- name: "Phase 2: Partition disk and create ZFS pool"
+  hosts: target
+  gather_facts: false
+
+  pre_tasks:
+    - name: Detect boot mode
+      ansible.builtin.stat:
+        path: /sys/firmware/efi
+      register: efi_check
+
+    - name: Set facts
+      ansible.builtin.set_fact:
+        boot_mode: "{{ 'uefi' if efi_check.stat.exists else 'bios' }}"
+        disk_dev: "/dev/{{ default_target_disk }}"
+        part_suffix: "{{ 'p' if 'nvme' in default_target_disk else '' }}"
+
+    - name: Verify disk exists
+      ansible.builtin.stat:
+        path: "{{ disk_dev }}"
+      register: disk_check
+      failed_when: not disk_check.stat.exists
+
+    - name: Try to import rpool if not active
+      ansible.builtin.shell: zpool import -f -R /mnt/gentoo rpool 2>/dev/null || true
+      changed_when: false
+
+    - name: Check if rpool already exists
+      ansible.builtin.command: zpool list rpool
+      register: rpool_check
+      failed_when: false
+      changed_when: false
+
+    - name: Show existing pool status
+      ansible.builtin.debug:
+        msg: "rpool exists - skipping disk operations."
+      when: rpool_check.rc == 0
+
+    - name: Check if rpool/ROOT/gentoo is mounted
+      ansible.builtin.shell: zfs get -H -o value mounted rpool/ROOT/gentoo 2>/dev/null || echo "no"
+      register: gentoo_mounted
+      changed_when: false
+
+  tasks:
+    - name: Abort if no pool and user declined
+      ansible.builtin.fail:
+        msg: "No existing rpool and disk destruction was not confirmed. Aborting."
+      when: default_confirm_destroy != 'yes' and rpool_check.rc != 0
+
+    # --- Partitioning (skip if rpool already exists) ---
+    # BIOS: sda1(2M BIOS boot) sda2(swap) sda3(rpool)
+    # UEFI: sda1(512M ESP)     sda2(swap) sda3(rpool)
+    - name: Wipe partition table
+      ansible.builtin.command: sgdisk --zap-all {{ disk_dev }}
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+
+    - name: Create BIOS boot partition (2M)
+      ansible.builtin.command: sgdisk -n 1:0:+2M -t 1:EF02 {{ disk_dev }}
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0 and boot_mode == 'bios'
+
+    - name: Create ESP partition (512M)
+      ansible.builtin.command: sgdisk -n 1:0:+512M -t 1:EF00 {{ disk_dev }}
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0 and boot_mode == 'uefi'
+
+    - name: Get total memory in GB
+      ansible.builtin.shell: awk '/MemTotal/{printf "%d", $2/1024/1024 + 1}' /proc/meminfo
+      register: mem_gb
+      changed_when: false
+
+    - name: Set swap size
+      ansible.builtin.set_fact:
+        swap_size: "{{ [mem_gb.stdout | int, 8] | min }}G"
+
+    - name: Create swap partition
+      ansible.builtin.command: sgdisk -n 2:0:+{{ swap_size }} -t 2:8200 {{ disk_dev }}
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+
+    - name: Create ZFS partition (remaining space)
+      ansible.builtin.command: sgdisk -n 3:0:0 -t 3:BF00 {{ disk_dev }}
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+
+    - name: Inform kernel of partition changes
+      ansible.builtin.command: partprobe {{ disk_dev }}
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+
+    - name: Wait for partitions
+      ansible.builtin.pause:
+        seconds: 2
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+
+    - name: Format ESP
+      ansible.builtin.command: mkfs.vfat -F 32 {{ disk_dev }}{{ part_suffix }}1
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0 and boot_mode == 'uefi'
+
+    - name: Format swap
+      ansible.builtin.command: mkswap {{ disk_dev }}{{ part_suffix }}2
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+
+    - name: Enable swap
+      ansible.builtin.command: swapon {{ disk_dev }}{{ part_suffix }}2
+      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+
+    # --- ZFS Pool (skip if already exists) ---
+    - name: Create ZFS pool (rpool)
+      ansible.builtin.command: >
+        zpool create -f
+        -o ashift=12
+        -o autotrim=on
+        -o compatibility=grub2
+        -o cachefile=
+        -O acltype=posixacl
+        -O compression=lz4
+        -O dnodesize=legacy
+        -O normalization=formD
+        -O relatime=on
+        -O xattr=sa
+        -O canmount=off
+        -O mountpoint=none
+        -R /mnt/gentoo
+        rpool {{ disk_dev }}{{ part_suffix }}3
+      when: rpool_check.rc != 0
+
+    # --- ZFS Datasets (skip if already exist) ---
+    - name: Check existing datasets
+      ansible.builtin.shell: zfs list -H -o name 2>/dev/null
+      register: existing_datasets
+      changed_when: false
+
+    - name: Create ROOT container
+      ansible.builtin.command: zfs create -o canmount=off -o mountpoint=none rpool/ROOT
+      when: "'rpool/ROOT' not in existing_datasets.stdout_lines"
+
+    - name: Create gentoo root dataset
+      ansible.builtin.command: zfs create -o canmount=noauto -o mountpoint=/ rpool/ROOT/gentoo
+      when: "'rpool/ROOT/gentoo' not in existing_datasets.stdout_lines"
+
+    - name: Create home dataset
+      ansible.builtin.command: zfs create -o mountpoint=/home rpool/home
+      when: "'rpool/home' not in existing_datasets.stdout_lines"
+
+    # --- Mount at /mnt/gentoo (skip if already mounted) ---
+    - name: Mount root dataset
+      ansible.builtin.command: zfs mount rpool/ROOT/gentoo
+      when: gentoo_mounted.stdout.strip() != 'yes'
+      register: mount_result
+      failed_when: mount_result.rc != 0 and 'already mounted' not in mount_result.stderr
+
+    - name: Create /mnt/gentoo/boot/efi directory
+      ansible.builtin.file:
+        path: /mnt/gentoo/boot/efi
+        state: directory
+      when: boot_mode == 'uefi'
+
+    - name: Check if ESP is mounted
+      ansible.builtin.shell: findmnt /mnt/gentoo/boot/efi > /dev/null 2>&1 && echo "yes" || echo "no"
+      register: esp_mounted
+      changed_when: false
+      when: boot_mode == 'uefi'
+
+    - name: Mount ESP at /mnt/gentoo/boot/efi
+      ansible.builtin.command: mount {{ disk_dev }}{{ part_suffix }}1 /mnt/gentoo/boot/efi
+      when: boot_mode == 'uefi' and esp_mounted.stdout.strip() == 'no'
+
+    # --- Verify ---
+    - name: Show final layout
+      ansible.builtin.shell: |
+        echo "=== Boot mode: {{ boot_mode }} ==="
+        echo ""
+        echo "=== ZFS datasets ==="
+        zfs list -o name,mountpoint,canmount
+        echo ""
+        echo "=== Mounts ==="
+        findmnt -R /mnt/gentoo 2>/dev/null || mount | grep gentoo
+      changed_when: false
+      register: layout
+
+    - name: Display result
+      ansible.builtin.debug:
+        var: layout.stdout_lines

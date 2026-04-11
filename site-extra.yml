@@ -1,0 +1,12 @@
+---
+# Extended setup - run AFTER base install and reboot
+# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+#
+# Prerequisites: Base system booted from site.yml
+# Add playbooks below as needed:
+
+# - name: Import wayland desktop
+#   ansible.builtin.import_playbook: extra/10-wayland.yml
+
+# - name: Import development tools
+#   ansible.builtin.import_playbook: extra/11-devtools.yml

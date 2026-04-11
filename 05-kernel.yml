@@ -1,0 +1,181 @@
+---
+- name: "Kernel: Build from running kernel config"
+  hosts: target
+  gather_facts: false
+
+  vars:
+    mountpoint: /mnt/gentoo
+    chroot: "chroot {{ mountpoint }} /bin/bash -c"
+
+  tasks:
+    # --- Step 1: Install kernel sources, firmware, and ccache ---
+    - name: Install kernel sources, firmware, and ccache
+      ansible.builtin.command: >
+        {{ chroot }} 'emerge --noreplace
+        sys-kernel/gentoo-sources
+        sys-kernel/linux-firmware
+        sys-kernel/installkernel
+        dev-util/ccache'
+      register: ksrc_emerge
+      changed_when: "'Installing' in ksrc_emerge.stdout"
+
+    - name: Ensure /usr/src/linux symlink
+      ansible.builtin.command: "{{ chroot }} 'eselect kernel set 1'"
+      changed_when: false
+
+    - name: Find kernel version in chroot
+      ansible.builtin.shell: "{{ chroot }} 'readlink -f /usr/src/linux | xargs basename'"
+      register: kernel_dir
+      changed_when: false
+
+    - name: Set kernel source path
+      ansible.builtin.set_fact:
+        ksrc: "/usr/src/{{ kernel_dir.stdout }}"
+        kernel_version: "{{ kernel_dir.stdout | regex_replace('^linux-', '') }}"
+
+    # --- Step 2: Check if rebuild is needed ---
+    - name: Check for installed kernel
+      ansible.builtin.shell: >
+        find {{ mountpoint }}/boot/ -maxdepth 1 -name '*{{ kernel_version }}*' -type f | head -1
+      register: installed_kernel_match
+      changed_when: false
+
+    - name: Check if ZFS module exists
+      ansible.builtin.shell: >
+        {{ chroot }} 'find /lib/modules/*{{ kernel_version }}* -name zfs.ko* 2>/dev/null | head -1'
+      register: existing_zfs_module
+      changed_when: false
+      failed_when: false
+
+    - name: Check if initramfs exists
+      ansible.builtin.shell: >
+        find {{ mountpoint }}/boot/ -maxdepth 1 -name 'initramfs-{{ kernel_version }}*' -type f | head -1
+      register: existing_initramfs
+      changed_when: false
+
+    - name: Determine if rebuild needed
+      ansible.builtin.set_fact:
+        need_rebuild: "{{ installed_kernel_match.stdout == '' or existing_zfs_module.stdout == '' }}"
+
+    - name: Show rebuild decision
+      ansible.builtin.debug:
+        msg: >
+          Rebuild needed: {{ need_rebuild }}
+          (kernel installed: {{ installed_kernel_match.stdout != '' }},
+          zfs module: {{ existing_zfs_module.stdout != '' }})
+
+    # --- Step 3: Generate .config (only if rebuild needed) ---
+    - name: Generate config and build kernel
+      when: need_rebuild
+      block:
+        - name: Check if /proc/config.gz exists on live system
+          ansible.builtin.stat:
+            path: /proc/config.gz
+          register: proc_config
+
+        - name: Extract /proc/config.gz to temp
+          ansible.builtin.shell: >
+            zcat /proc/config.gz > {{ mountpoint }}/tmp/new_kernel.config
+          when: proc_config.stat.exists
+
+        - name: Fallback - generate defconfig to temp
+          ansible.builtin.shell: >
+            {{ chroot }} 'make -C {{ ksrc }} defconfig O=/tmp/defconfig_out' &&
+            cp {{ mountpoint }}/tmp/defconfig_out/.config {{ mountpoint }}/tmp/new_kernel.config
+          when: not proc_config.stat.exists
+
+        - name: Save current lsmod
+          ansible.builtin.shell: lsmod > {{ mountpoint }}/tmp/lsmod.txt
+
+        - name: Apply localmodconfig
+          ansible.builtin.shell: >
+            cp {{ mountpoint }}/tmp/new_kernel.config {{ mountpoint }}{{ ksrc }}/.config &&
+            {{ chroot }} 'cd {{ ksrc }} &&
+            LSMOD=/tmp/lsmod.txt make localmodconfig KCONFIG_ALLCONFIG=.config < /dev/null'
+
+        - name: Enable ZFS-required kernel options
+          ansible.builtin.shell: |
+            cd {{ mountpoint }}{{ ksrc }}
+            scripts/config --enable CONFIG_ZLIB_INFLATE
+            scripts/config --enable CONFIG_ZLIB_DEFLATE
+            scripts/config --enable CONFIG_CRYPTO
+            scripts/config --enable CONFIG_CRYPTO_DEFLATE
+            scripts/config --module CONFIG_CRYPTO_LZ4
+            scripts/config --module CONFIG_CRYPTO_LZ4HC
+            scripts/config --enable CONFIG_CRYPTO_ZSTD
+
+        - name: Olddefconfig
+          ansible.builtin.command: "{{ chroot }} 'make -C {{ ksrc }} olddefconfig'"
+
+        # --- Step 4: Build kernel ---
+        - name: Get MAKEOPTS jobs
+          ansible.builtin.shell: nproc
+          register: nproc
+          changed_when: false
+
+        - name: Build kernel
+          ansible.builtin.command: "{{ chroot }} 'make -C {{ ksrc }} -j{{ nproc.stdout }} CC=\"ccache gcc\" bzImage modules'"
+          async: 7200
+          poll: 30
+
+        - name: Install kernel modules
+          ansible.builtin.command: "{{ chroot }} 'make -C {{ ksrc }} modules_install'"
+
+        - name: Install kernel
+          ansible.builtin.command: "{{ chroot }} 'make -C {{ ksrc }} install'"
+
+        # --- Step 5: ZFS ---
+        - name: Install ZFS packages
+          ansible.builtin.command: >
+            {{ chroot }} 'emerge --noreplace sys-fs/zfs sys-fs/zfs-kmod'
+          register: zfs_emerge
+          changed_when: "'Installing' in zfs_emerge.stdout"
+
+        - name: Rebuild ZFS module for new kernel
+          ansible.builtin.command: "{{ chroot }} 'emerge --oneshot @module-rebuild'"
+
+        - name: Verify ZFS module exists
+          ansible.builtin.shell: >
+            {{ chroot }} 'find /lib/modules/ -name zfs.ko* | head -1'
+          register: zfs_module
+          failed_when: zfs_module.stdout == ""
+
+    # --- initramfs (independent of kernel rebuild) ---
+    - name: Install dracut
+      ansible.builtin.command: >
+        {{ chroot }} 'emerge --noreplace sys-kernel/dracut'
+      register: dracut_emerge
+      changed_when: "'Installing' in dracut_emerge.stdout"
+
+    - name: Ensure dracut config directory
+      ansible.builtin.file:
+        path: "{{ mountpoint }}/etc/dracut.conf.d"
+        state: directory
+        mode: "0755"
+
+    - name: Configure dracut for ZFS
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/dracut.conf.d/zfs.conf"
+        mode: "0644"
+        content: |
+          add_dracutmodules+=" zfs "
+          omit_dracutmodules+=" btrfs "
+      register: dracut_conf
+
+    - name: Generate initramfs if missing or config changed
+      ansible.builtin.command: >
+        {{ chroot }} 'dracut --force --add zfs --kver {{ kernel_version }} /boot/initramfs-{{ kernel_version }}.img'
+      when: existing_initramfs.stdout == '' or dracut_conf.changed
+
+    - name: Show installed kernel
+      ansible.builtin.shell: >
+        find {{ mountpoint }}/boot/ -maxdepth 1
+        \( -name 'vmlinuz*' -o -name 'bzImage*' -o -name 'kernel-*' \)
+        | sort
+      register: installed_kernel
+      changed_when: false
+      failed_when: false
+
+    - name: Display result
+      ansible.builtin.debug:
+        msg: "{{ installed_kernel.stdout_lines | default(['No kernel image found in /boot']) }}"

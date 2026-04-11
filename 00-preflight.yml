@@ -1,0 +1,25 @@
+---
+- name: Preflight - SSH connectivity and ZFS availability check
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Ping-pong connectivity check
+      ansible.builtin.ping:
+
+    - name: Check zpool command exists
+      ansible.builtin.command: which zpool
+      changed_when: false
+
+    - name: Check zfs command exists
+      ansible.builtin.command: which zfs
+      changed_when: false
+
+    - name: Get zpool version
+      ansible.builtin.command: zpool version
+      changed_when: false
+      register: zpool_ver
+
+    - name: Show ZFS version
+      ansible.builtin.debug:
+        var: zpool_ver.stdout_lines
