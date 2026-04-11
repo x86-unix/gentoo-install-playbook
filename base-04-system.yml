@@ -93,6 +93,15 @@
       register: timesyncd_enable
       changed_when: "'Created symlink' in timesyncd_enable.stdout + timesyncd_enable.stderr"
 
+    - name: Configure NTP servers
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/systemd/timesyncd.conf"
+        mode: "0644"
+        content: |
+          [Time]
+          NTP=0.gentoo.pool.ntp.org 1.gentoo.pool.ntp.org 2.gentoo.pool.ntp.org 3.gentoo.pool.ntp.org
+          FallbackNTP=0.pool.ntp.org 1.pool.ntp.org
+
     # --- fstab ---
     - name: Detect target disk
       ansible.builtin.shell: >
