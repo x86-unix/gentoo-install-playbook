@@ -11,19 +11,19 @@ Ansible playbook で Gentoo Linux を ZFS root にインストールする。
 ## 構成
 
 ```
-site.yml              # 全工程を一括実行（00-07）
-site-extra.yml        # 拡張セットアップ（reboot 後に実行）
-00-preflight.yml      # SSH 疎通・ZFS コマンド確認
-01-disk-setup.yml     # パーティション作成・ZFS pool/dataset 作成
-02-stage3.yml         # stage3 ダウンロード・展開・chroot 準備
-03-portage.yml        # Portage 設定・make.conf 生成
-04-system.yml         # timezone/locale/hostname/network/fstab
-05-kernel.yml         # カーネルビルド・ZFS モジュール・dracut initramfs
-06-bootloader.yml     # GRUB インストール・grub.cfg 生成
-07-finalize.yml       # root パスワード・SSH・unmount・reboot
-group_vars/target.yml # 全設定値
-inventory.ini         # ターゲットホスト定義
-extra/                # 拡張 playbook（wayland 等）
+site-base.yml              # 全工程を一括実行（base-00〜07）
+site-extra.yml             # 拡張セットアップ（reboot 後に実行）
+base-00-preflight.yml      # SSH 疎通・ZFS コマンド確認
+base-01-disk-setup.yml     # パーティション作成・ZFS pool/dataset 作成
+base-02-stage3.yml         # stage3 ダウンロード・展開・chroot 準備
+base-03-portage.yml        # Portage 設定・make.conf 生成
+base-04-system.yml         # timezone/locale/hostname/network/fstab
+base-05-kernel.yml         # カーネルビルド・ZFS モジュール・dracut initramfs
+base-06-bootloader.yml     # GRUB インストール・grub.cfg 生成
+base-07-finalize.yml       # root パスワード・SSH・unmount・reboot
+group_vars/target.yml      # 全設定値
+inventory.ini              # ターゲットホスト定義
+extra/                     # 拡張 playbook（wayland 等）
 ```
 
 ## パーティション構成
@@ -114,7 +114,7 @@ default_root_password: root
 ### 2. 一括実行
 
 ```bash
-ansible-playbook -i inventory.ini site.yml -e ansible_ssh_pass=rescue
+ansible-playbook -i inventory.ini site-base.yml -e ansible_ssh_pass=rescue
 ```
 
 実行中に 2 回確認プロンプトが出る：
@@ -129,7 +129,7 @@ ansible-playbook -i inventory.ini site.yml -e ansible_ssh_pass=rescue
 ### 3. 個別実行
 
 ```bash
-ansible-playbook -i inventory.ini 05-kernel.yml -e ansible_ssh_pass=rescue
+ansible-playbook -i inventory.ini base-05-kernel.yml -e ansible_ssh_pass=rescue
 ```
 
 各 playbook は冪等性があり、完了済みの工程はスキップされる。

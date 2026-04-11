@@ -1,0 +1,62 @@
+---
+# Debug: Regenerate initramfs with bind mounts and verify ZFS
+# Run after base-01-disk-setup.yml
+# Usage: ansible-playbook -i inventory.ini debug-zfs-boot.yml -e ansible_ssh_pass=rescue
+
+- name: "Debug: Regenerate initramfs with ZFS"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Ensure bind mounts
+      ansible.builtin.shell: |
+        mountpoint -q {{ mountpoint }}{{ item.dst }} && exit 0
+        mkdir -p {{ mountpoint }}{{ item.dst }}
+        mount {{ item.opts }} {{ item.src }} {{ mountpoint }}{{ item.dst }}
+      loop:
+        - { src: /proc, dst: /proc, opts: "--types proc" }
+        - { src: /sys, dst: /sys, opts: "--rbind" }
+        - { src: /dev, dst: /dev, opts: "--rbind" }
+        - { src: /run, dst: /run, opts: "--rbind" }
+      loop_control:
+        label: "{{ item.dst }}"
+      changed_when: false
+
+    - name: Get kernel version
+      ansible.builtin.shell: "{{ chroot }} 'readlink -f /usr/src/linux | xargs basename'"
+      register: kernel_dir
+      changed_when: false
+
+    - name: Set kernel version
+      ansible.builtin.set_fact:
+        kver: "{{ kernel_dir.stdout | regex_replace('^linux-', '') }}"
+
+    - name: Write /etc/modules-load.d/zfs.conf in chroot
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/usr/lib/modules-load.d/zfs.conf"
+        mode: "0644"
+        content: "zfs\n"
+
+    - name: Regenerate initramfs with dracut
+      ansible.builtin.command: >
+        {{ chroot }} 'dracut --force --add zfs --force-drivers "zfs spl" --kver {{ kver }} /boot/initramfs-{{ kver }}.img'
+
+    - name: Check modules-load.d/zfs.conf in new initramfs
+      ansible.builtin.shell: |
+        cd /tmp && mkdir -p initrd-verify
+        cp {{ mountpoint }}/boot/initramfs-{{ kver }}.img /tmp/initrd-verify/initrd.img
+        cd /tmp/initrd-verify
+        zstd -d initrd.img -o initrd.cpio 2>/dev/null
+        mkdir extracted && cd extracted
+        cpio -id < ../initrd.cpio 2>/dev/null
+        echo "--- modules-load.d/zfs.conf ---"
+        cat usr/lib/modules-load.d/zfs.conf 2>/dev/null
+        echo "--- zfs.ko ---"
+        find . -name "zfs.ko*"
+        rm -rf /tmp/initrd-verify
+      register: initrd_verify
+      changed_when: false
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ initrd_verify.stdout_lines }}"
