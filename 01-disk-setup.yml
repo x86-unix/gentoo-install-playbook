@@ -98,10 +98,7 @@
       changed_when: false
 
   tasks:
-    - name: Abort if existing pool and user declined
-      ansible.builtin.fail:
-        msg: "Existing rpool preserved. Aborting."
-      when: not need_create and rpool_check.rc == 0 and default_confirm_destroy != 'yes'
+
 
     # --- Partitioning ---
     # BIOS: sda1(2M BIOS boot) sda2(swap) sda3(rpool)
