@@ -164,11 +164,12 @@
         dest: "{{ mountpoint }}/usr/lib/modules-load.d/zfs.conf"
         mode: "0644"
         content: "zfs\n"
+      register: modules_load_conf
 
     - name: Generate initramfs if missing or config changed
       ansible.builtin.command: >
         {{ chroot }} 'dracut --force --add zfs --kver {{ kernel_version }} /boot/initramfs-{{ kernel_version }}.img'
-      when: existing_initramfs.stdout == '' or dracut_conf.changed
+      when: existing_initramfs.stdout == '' or dracut_conf.changed or modules_load_conf.changed
 
     - name: Show installed kernel
       ansible.builtin.shell: >
