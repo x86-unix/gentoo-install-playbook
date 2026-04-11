@@ -82,31 +82,41 @@
         default_confirm_destroy: "yes"
       when: rpool_check.rc != 0
 
+    - name: Set need_create flag
+      ansible.builtin.set_fact:
+        need_create: "{{ (rpool_check.rc != 0) or (default_confirm_destroy == 'yes' and rpool_check.rc == 0) }}"
+
+    - name: Destroy existing pool
+      ansible.builtin.shell: |
+        zfs unmount -a 2>/dev/null || true
+        zpool destroy -f rpool
+      when: need_create and rpool_check.rc == 0
+
     - name: Check if rpool/ROOT/gentoo is mounted
       ansible.builtin.shell: zfs get -H -o value mounted rpool/ROOT/gentoo 2>/dev/null || echo "no"
       register: gentoo_mounted
       changed_when: false
 
   tasks:
-    - name: Abort if no pool and user declined
+    - name: Abort if existing pool and user declined
       ansible.builtin.fail:
-        msg: "No existing rpool and disk destruction was not confirmed. Aborting."
-      when: default_confirm_destroy != 'yes' and rpool_check.rc != 0
+        msg: "Existing rpool preserved. Aborting."
+      when: not need_create and rpool_check.rc == 0 and default_confirm_destroy != 'yes'
 
-    # --- Partitioning (skip if rpool already exists) ---
+    # --- Partitioning ---
     # BIOS: sda1(2M BIOS boot) sda2(swap) sda3(rpool)
     # UEFI: sda1(512M ESP)     sda2(swap) sda3(rpool)
     - name: Wipe partition table
       ansible.builtin.command: sgdisk --zap-all {{ disk_dev }}
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+      when: need_create
 
     - name: Create BIOS boot partition (2M)
       ansible.builtin.command: sgdisk -n 1:0:+2M -t 1:EF02 {{ disk_dev }}
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0 and boot_mode == 'bios'
+      when: need_create and boot_mode == 'bios'
 
     - name: Create ESP partition (512M)
       ansible.builtin.command: sgdisk -n 1:0:+512M -t 1:EF00 {{ disk_dev }}
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0 and boot_mode == 'uefi'
+      when: need_create and boot_mode == 'uefi'
 
     - name: Get total memory in GB
       ansible.builtin.shell: awk '/MemTotal/{printf "%d", $2/1024/1024 + 1}' /proc/meminfo
@@ -119,34 +129,34 @@
 
     - name: Create swap partition
       ansible.builtin.command: sgdisk -n 2:0:+{{ swap_size }} -t 2:8200 {{ disk_dev }}
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+      when: need_create
 
     - name: Create ZFS partition (remaining space)
       ansible.builtin.command: sgdisk -n 3:0:0 -t 3:BF00 {{ disk_dev }}
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+      when: need_create
 
     - name: Inform kernel of partition changes
       ansible.builtin.command: partprobe {{ disk_dev }}
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+      when: need_create
 
     - name: Wait for partitions
       ansible.builtin.pause:
         seconds: 2
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+      when: need_create
 
     - name: Format ESP
       ansible.builtin.command: mkfs.vfat -F 32 {{ disk_dev }}{{ part_suffix }}1
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0 and boot_mode == 'uefi'
+      when: need_create and boot_mode == 'uefi'
 
     - name: Format swap
       ansible.builtin.command: mkswap {{ disk_dev }}{{ part_suffix }}2
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+      when: need_create
 
     - name: Enable swap
       ansible.builtin.command: swapon {{ disk_dev }}{{ part_suffix }}2
-      when: default_confirm_destroy == 'yes' and rpool_check.rc != 0
+      when: need_create
 
-    # --- ZFS Pool (skip if already exists) ---
+    # --- ZFS Pool ---
     - name: Create ZFS pool (rpool)
       ansible.builtin.command: >
         zpool create -f
@@ -164,7 +174,7 @@
         -O mountpoint=none
         -R /mnt/gentoo
         rpool {{ disk_dev }}{{ part_suffix }}3
-      when: rpool_check.rc != 0
+      when: need_create
 
     # --- ZFS Datasets (skip if already exist) ---
     - name: Check existing datasets
