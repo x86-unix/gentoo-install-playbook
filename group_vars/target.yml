@@ -26,3 +26,8 @@ default_l10n: "en ja"
 
 # Root password (change before running)
 default_root_password: root
+
+# User
+default_user: gentoo
+default_user_password: gentoo
+sudo_nopasswd: false
