@@ -88,14 +88,14 @@
 
     - name: Destroy existing pool
       ansible.builtin.shell: |
-        umount -l {{ mountpoint }}/dev/shm 2>/dev/null || true
-        umount -l {{ mountpoint }}/dev 2>/dev/null || true
-        umount -l {{ mountpoint }}/run 2>/dev/null || true
-        umount -l {{ mountpoint }}/sys 2>/dev/null || true
-        umount -l {{ mountpoint }}/proc 2>/dev/null || true
+        umount {{ mountpoint }}/dev/shm 2>/dev/null || true
+        umount {{ mountpoint }}/dev/pts 2>/dev/null || true
+        umount -R {{ mountpoint }}/dev 2>/dev/null || true
+        umount -R {{ mountpoint }}/sys 2>/dev/null || true
+        umount -R {{ mountpoint }}/run 2>/dev/null || true
+        umount {{ mountpoint }}/proc 2>/dev/null || true
         umount {{ mountpoint }}/boot/efi 2>/dev/null || true
         zfs unmount -a 2>/dev/null || true
-        umount -R {{ mountpoint }} 2>/dev/null || true
         zpool destroy -f rpool
       when: need_create and rpool_check.rc == 0
 
