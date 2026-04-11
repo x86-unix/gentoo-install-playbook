@@ -4,11 +4,11 @@
 #
 # Prerequisites: Base system booted from site-base.yml
 
-- name: Import base services
-  ansible.builtin.import_playbook: extra/extra-00-base-services.yml
-
 - name: Import portage git sync
-  ansible.builtin.import_playbook: extra/extra-01-portage-git-sync.yml
+  ansible.builtin.import_playbook: extra/extra-00-portage-git-sync.yml
+
+- name: Import base services
+  ansible.builtin.import_playbook: extra/extra-01-base-services.yml
 
 # - name: Import wayland desktop
 #   ansible.builtin.import_playbook: extra/extra-01-wayland.yml
