@@ -1,0 +1,34 @@
+---
+# Switch portage sync to git and run emaint sync
+# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+
+- name: "Extra: Switch portage sync to git"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Ensure repos.conf directory
+      ansible.builtin.file:
+        path: /etc/portage/repos.conf
+        state: directory
+        mode: "0755"
+
+    - name: Configure gentoo.conf for git sync
+      ansible.builtin.copy:
+        dest: /etc/portage/repos.conf/gentoo.conf
+        mode: "0644"
+        content: |
+          [DEFAULT]
+          main-repo = gentoo
+
+          [gentoo]
+          location = /var/db/repos/gentoo
+          sync-type = git
+          sync-uri = https://github.com/gentoo-mirror/gentoo.git
+          auto-sync = yes
+          sync-git-verify-commit-signature = no
+      register: repos_conf
+
+    - name: Sync portage tree
+      ansible.builtin.command: emaint sync -a
+      when: repos_conf.changed
