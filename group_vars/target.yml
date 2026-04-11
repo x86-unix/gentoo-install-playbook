@@ -8,7 +8,6 @@ init_system: systemd
 
 # Disk
 default_target_disk: sda
-default_confirm_destroy: "no"
 
 # System
 default_timezone: Asia/Tokyo

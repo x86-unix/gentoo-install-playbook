@@ -79,7 +79,6 @@ vi group_vars/target.yml
 ```yaml
 # Disk
 default_target_disk: sda
-default_confirm_destroy: "yes"
 
 # System
 default_timezone: Asia/Tokyo
@@ -103,10 +102,9 @@ default_root_password: root
 | 変数 | 説明 |
 |------|------|
 | `default_target_disk` | インストール先ディスク（`sda`, `nvme0n1` 等） |
-| `default_confirm_destroy` | `yes` でディスクを破壊してパーティション作成 |
 | `default_timezone` | システムのタイムゾーン |
 | `default_hostname` | ホスト名 |
-| `gentoo_mirror` | stage3 / distfiles のミラー URL |
+| `gentoo_mirror` | stage3 / distfiles のミラー URL（国内例: `https://ftp.jaist.ac.jp/pub/Linux/Gentoo`） |
 | `use_flags` | Portage のグローバル USE フラグ |
 | `default_locales` | `/etc/locale.gen` に書くロケール一覧 |
 | `default_lang` | `LANG` 環境変数（メッセージ・日付等のデフォルトロケール） |
@@ -119,7 +117,13 @@ default_root_password: root
 ansible-playbook -i inventory.ini site.yml -e ansible_ssh_pass=rescue
 ```
 
-最初に確認プロンプトが出る。`yes` で全工程がノンストップで実行される。
+実行中に 2 回確認プロンプトが出る：
+
+1. 開始確認 — インストールを開始してよいか
+2. ディスク確認 — rpool が既に存在する場合のみ、破壊して再作成するか確認（rpool が無い場合は確認なしで作成）
+
+最後に reboot 確認が出る。`yes` で再起動、それ以外でスキップ（ライブ環境を維持）。
+
 カーネルビルドに 1〜2 時間かかる。
 
 ### 3. 個別実行
@@ -134,16 +138,18 @@ ansible-playbook -i inventory.ini 05-kernel.yml -e ansible_ssh_pass=rescue
 
 | playbook | スキップ条件 |
 |----------|-------------|
-| 01 | rpool が既に存在する |
+| 01 | rpool が既に存在し、ユーザーが再作成を拒否した場合はスキップ |
 | 02 | `/usr/bin/emerge` が存在する |
 | 03 | portage tree が存在する、make.conf が同一 |
 | 04 | 各設定ファイルが同一 |
 | 05 | カーネルイメージ + ZFS モジュール + initramfs が存在する |
 | 06 | GRUB が MBR/EFI にインストール済み、grub.cfg が同一 |
-| 07 | 毎回実行（パスワード設定・reboot） |
+| 07 | 毎回実行（パスワード設定）。reboot は確認後のみ |
 
 ## 注意事項
 
-- `default_confirm_destroy: "yes"` の状態で実行するとディスクが破壊される
+- rpool が存在しないディスクに対しては確認なしでパーティションが作成される
+- rpool が既に存在する場合は対話プロンプトで確認される
+- reboot を拒否した場合、ライブ環境の bind mount はそのまま維持される（再実行可能）
 - ライブ環境のカーネル config（`/proc/config.gz`）をベースに `localmodconfig` でカーネルを最小化している。異なるライブ環境で再実行すると config が変わりカーネルが再ビルドされる
 - `group_vars/target.yml` に root パスワードが平文で保存される。必要に応じて `ansible-vault` で暗号化すること

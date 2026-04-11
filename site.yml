@@ -5,20 +5,16 @@
 - name: Confirm before installation
   hosts: target
   gather_facts: false
-  vars_prompt:
-    - name: confirm_run
-      prompt: "\nThis will DESTROY all data on the target disk and install Gentoo. Type 'yes' to proceed, or 'no' to keep existing disk"
-      private: false
   tasks:
+    - name: Confirm start
+      ansible.builtin.pause:
+        prompt: "\n\e[1;33mStart Gentoo installation on this host?\e[0m Type \e[1;32myes\e[0m to proceed"
+      register: confirm_prompt
+
     - name: Abort if cancelled
       ansible.builtin.fail:
         msg: "Aborted by user."
-      when: confirm_run not in ['yes', 'no']
-
-    - name: Set destroy flag
-      ansible.builtin.set_fact:
-        default_confirm_destroy: "{{ confirm_run }}"
-        cacheable: true
+      when: confirm_prompt.user_input != 'yes'
 
 - name: Import preflight
   ansible.builtin.import_playbook: 00-preflight.yml

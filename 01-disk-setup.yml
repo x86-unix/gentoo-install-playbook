@@ -63,8 +63,24 @@
 
     - name: Show existing pool status
       ansible.builtin.debug:
-        msg: "rpool exists - skipping disk operations."
+        msg: "rpool exists on {{ disk_dev }}."
       when: rpool_check.rc == 0
+
+    - name: Confirm destruction of existing pool
+      ansible.builtin.pause:
+        prompt: "\n\e[1;31mrpool already exists on {{ disk_dev }}. DESTROY and recreate?\e[0m Type \e[1;32myes\e[0m to proceed"
+      register: destroy_prompt
+      when: rpool_check.rc == 0
+
+    - name: Set destroy flag from prompt
+      ansible.builtin.set_fact:
+        default_confirm_destroy: "{{ destroy_prompt.user_input }}"
+      when: rpool_check.rc == 0
+
+    - name: Force destroy for fresh disk
+      ansible.builtin.set_fact:
+        default_confirm_destroy: "yes"
+      when: rpool_check.rc != 0
 
     - name: Check if rpool/ROOT/gentoo is mounted
       ansible.builtin.shell: zfs get -H -o value mounted rpool/ROOT/gentoo 2>/dev/null || echo "no"
@@ -171,9 +187,9 @@
     # --- Mount at /mnt/gentoo (skip if already mounted) ---
     - name: Mount root dataset
       ansible.builtin.command: zfs mount rpool/ROOT/gentoo
-      when: gentoo_mounted.stdout.strip() != 'yes'
       register: mount_result
-      failed_when: mount_result.rc != 0 and 'already mounted' not in mount_result.stderr
+      changed_when: mount_result.rc == 0 and 'already mounted' not in (mount_result.stderr | default(''))
+      failed_when: mount_result.rc != 0 and 'already mounted' not in (mount_result.stderr | default('')) and 'filesystem already mounted' not in (mount_result.stderr | default(''))
 
     - name: Create /mnt/gentoo/boot/efi directory
       ansible.builtin.file:
