@@ -62,6 +62,17 @@ initrd /ROOT/gentoo@/boot/initramfs-<version>.img
 ### 1. 設定を編集
 
 ```bash
+vi inventory.ini
+```
+
+```ini
+[target]
+192.168.77.26 ansible_user=root ansible_python_interpreter=/usr/bin/python3.13
+```
+
+IP アドレスをターゲットマシンに合わせて変更する。
+
+```bash
 vi group_vars/target.yml
 ```
 
@@ -75,11 +86,32 @@ default_timezone: Asia/Tokyo
 default_hostname: zfs-gentoo
 
 # Portage
+gentoo_mirror: https://distfiles.gentoo.org
 use_flags: "zfs -X -wayland -gtk -qt5 -qt6"
+
+# Locale
+default_locales:
+  - en_US.UTF-8 UTF-8
+  - ja_JP.UTF-8 UTF-8
+default_lang: ja_JP.UTF-8
+default_l10n: "en ja"
 
 # Root password
 default_root_password: root
 ```
+
+| 変数 | 説明 |
+|------|------|
+| `default_target_disk` | インストール先ディスク（`sda`, `nvme0n1` 等） |
+| `default_confirm_destroy` | `yes` でディスクを破壊してパーティション作成 |
+| `default_timezone` | システムのタイムゾーン |
+| `default_hostname` | ホスト名 |
+| `gentoo_mirror` | stage3 / distfiles のミラー URL |
+| `use_flags` | Portage のグローバル USE フラグ |
+| `default_locales` | `/etc/locale.gen` に書くロケール一覧 |
+| `default_lang` | `LANG` 環境変数（メッセージ・日付等のデフォルトロケール） |
+| `default_l10n` | Portage の `L10N`（ビルド時に含める言語リソース） |
+| `default_root_password` | root パスワード（平文。必要に応じて `ansible-vault` で暗号化） |
 
 ### 2. 一括実行
 

@@ -3,10 +3,6 @@
   hosts: target
   gather_facts: false
 
-  vars:
-    mountpoint: /mnt/gentoo
-    chroot: "chroot {{ mountpoint }} /bin/bash -c"
-
   tasks:
     # --- Detect CPU optimization from gcc cc1 diff ---
     - name: Write flag detection script to chroot
@@ -86,6 +82,16 @@
       register: cpuflags_final
       changed_when: false
 
+    # --- Detect boot mode ---
+    - name: Detect UEFI or BIOS
+      ansible.builtin.stat:
+        path: /sys/firmware/efi
+      register: efi_check
+
+    - name: Set GRUB platform
+      ansible.builtin.set_fact:
+        grub_platforms: "{{ 'efi-64' if efi_check.stat.exists else 'pc' }}"
+
     # --- Show all detected settings ---
     - name: Show detected settings
       ansible.builtin.debug:
@@ -112,10 +118,10 @@
           USE="{{ use_flags }}"
 
           ACCEPT_LICENSE="*"
-          GRUB_PLATFORMS="pc efi-64"
+          GRUB_PLATFORMS="{{ grub_platforms }}"
 
           LC_MESSAGES=C.UTF-8
-          L10N="en ja"
+          L10N="{{ default_l10n }}"
           {{ cpuflags_final.stdout }}
 
     - name: Show final make.conf

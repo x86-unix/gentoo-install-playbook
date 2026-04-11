@@ -3,10 +3,6 @@
   hosts: target
   gather_facts: false
 
-  vars:
-    mountpoint: /mnt/gentoo
-    chroot: "chroot {{ mountpoint }} /bin/bash -c"
-
   tasks:
     # --- NIC detection ---
     - name: Detect primary NIC
@@ -27,19 +23,9 @@
           - "NIC match: {{ nic_match }}"
 
     # --- Timezone ---
-    - name: Set timezone
-      ansible.builtin.copy:
-        dest: "{{ mountpoint }}/etc/timezone"
-        content: "{{ default_timezone }}\n"
-        mode: "0644"
-
-    - name: Link localtime
-      ansible.builtin.file:
-        src: "/usr/share/zoneinfo/{{ default_timezone }}"
-        dest: "{{ mountpoint }}/etc/localtime"
-        state: link
-        force: true
-        follow: false
+    - name: Set timezone via systemd-firstboot
+      ansible.builtin.command: systemd-firstboot --root={{ mountpoint }} --timezone={{ default_timezone }} --force
+      changed_when: false
 
     # --- Locale ---
     - name: Configure locale.gen
@@ -47,8 +33,9 @@
         dest: "{{ mountpoint }}/etc/locale.gen"
         mode: "0644"
         content: |
-          en_US.UTF-8 UTF-8
-          ja_JP.UTF-8 UTF-8
+          {% for loc in default_locales %}
+          {{ loc }}
+          {% endfor %}
 
     - name: Check if locales already generated
       ansible.builtin.shell: "{{ chroot }} 'locale -a 2>/dev/null | grep -c en_US.utf8'"
@@ -63,7 +50,7 @@
     - name: Set default locale
       ansible.builtin.copy:
         dest: "{{ mountpoint }}/etc/locale.conf"
-        content: "LANG=en_US.UTF-8\n"
+        content: "LANG={{ default_lang }}\n"
         mode: "0644"
 
     # --- Hostname ---
@@ -100,6 +87,11 @@
       ansible.builtin.command: "{{ chroot }} 'systemctl enable systemd-resolved'"
       register: resolved_enable
       changed_when: "'Created symlink' in resolved_enable.stdout + resolved_enable.stderr"
+
+    - name: Enable systemd-timesyncd (NTP)
+      ansible.builtin.command: "{{ chroot }} 'systemctl enable systemd-timesyncd'"
+      register: timesyncd_enable
+      changed_when: "'Created symlink' in timesyncd_enable.stdout + timesyncd_enable.stderr"
 
     # --- fstab ---
     - name: Detect target disk

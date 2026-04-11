@@ -3,10 +3,6 @@
   hosts: target
   gather_facts: false
 
-  vars:
-    mountpoint: /mnt/gentoo
-    chroot: "chroot {{ mountpoint }} /bin/bash -c"
-
   tasks:
     # --- Relax password policy ---
     - name: Relax passwdqc policy

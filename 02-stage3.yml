@@ -3,11 +3,6 @@
   hosts: target
   gather_facts: false
 
-  vars:
-    gentoo_mirror: https://distfiles.gentoo.org
-    init_system: systemd
-    mountpoint: /mnt/gentoo
-
   tasks:
     - name: Detect architecture
       ansible.builtin.command: uname -m
@@ -78,6 +73,13 @@
         - { src: /run, dst: /run, opts: "--rbind" }
       loop_control:
         label: "{{ item.dst }}"
+      changed_when: false
+
+    - name: Mount efivarfs if UEFI
+      ansible.builtin.shell: |
+        [ -d {{ mountpoint }}/sys/firmware/efi/efivars ] || exit 0
+        mountpoint -q {{ mountpoint }}/sys/firmware/efi/efivars && exit 0
+        mount -t efivarfs efivarfs {{ mountpoint }}/sys/firmware/efi/efivars
       changed_when: false
 
     - name: Make /dev/shm a proper tmpfs

@@ -3,10 +3,6 @@
   hosts: target
   gather_facts: false
 
-  vars:
-    mountpoint: /mnt/gentoo
-    chroot: "chroot {{ mountpoint }} /bin/bash -c"
-
   tasks:
     # --- Step 1: Install kernel sources, firmware, and ccache ---
     - name: Install kernel sources, firmware, and ccache
