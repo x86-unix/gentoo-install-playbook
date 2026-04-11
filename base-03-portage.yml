@@ -54,20 +54,11 @@
 
     - name: Copy gentoo.conf
       ansible.builtin.copy:
+        src: "{{ mountpoint }}/usr/share/portage/config/repos.conf"
         dest: "{{ mountpoint }}/etc/portage/repos.conf/gentoo.conf"
+        remote_src: true
         mode: "0644"
-        content: |
-          [DEFAULT]
-          main-repo = gentoo
-
-          [gentoo]
-          location = /var/db/repos/gentoo
-          sync-type = git
-          sync-uri = https://github.com/gentoo-mirror/gentoo.git
-          auto-sync = yes
-          sync-git-verify-commit-signature = no
-        force: true
-      register: repos_conf
+        force: false
 
     # --- Sync portage (needed before cpuid2cpuflags install) ---
     - name: Check if portage tree exists
@@ -76,8 +67,8 @@
       register: portage_tree
 
     - name: Sync portage tree
-      ansible.builtin.command: "{{ chroot }} 'emaint sync -a'"
-      when: not portage_tree.stat.exists or repos_conf.changed
+      ansible.builtin.command: "{{ chroot }} 'emerge-webrsync'"
+      when: not portage_tree.stat.exists
 
     # --- Install cpuid2cpuflags and detect ---
     - name: Install cpuid2cpuflags
