@@ -38,6 +38,7 @@
     - name: Install eix
       ansible.builtin.command: emerge --noreplace app-portage/eix
       register: eix_install
+      changed_when: "'Installing' in eix_install.stdout"
 
     - name: Sync portage tree and update eix database
       ansible.builtin.command: eix-sync

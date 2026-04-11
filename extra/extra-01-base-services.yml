@@ -23,5 +23,33 @@
         enabled: true
         state: started
 
-    - name: Install bind-tools, netcat and vim
-      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-editors/vim
+    - name: Install bind-tools, netcat, vim and sudo
+      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-editors/vim app-admin/sudo
+      register: tools_install
+      changed_when: "'Installing' in tools_install.stdout"
+
+    - name: Set default editor to vim
+      ansible.builtin.command: eselect editor set vi
+      changed_when: false
+
+    - name: Configure sudo for wheel group
+      ansible.builtin.copy:
+        dest: /etc/sudoers.d/wheel
+        mode: "0440"
+        content: "{% if sudo_nopasswd %}%wheel ALL=(ALL:ALL) NOPASSWD: ALL{% else %}%wheel ALL=(ALL:ALL) ALL{% endif %}\n"
+
+    - name: Check if user exists
+      ansible.builtin.command: id {{ default_user }}
+      register: user_check
+      changed_when: false
+      failed_when: false
+
+    - name: Create user
+      ansible.builtin.user:
+        name: "{{ default_user }}"
+        password: "{{ default_user_password | password_hash('sha512') }}"
+        groups: wheel
+        append: true
+        shell: /bin/bash
+        create_home: true
+      when: user_check.rc != 0
