@@ -198,7 +198,7 @@
     - name: Mount root dataset
       ansible.builtin.command: zfs mount rpool/ROOT/gentoo
       register: mount_result
-      changed_when: mount_result.rc == 0 and 'already mounted' not in (mount_result.stderr | default(''))
+      changed_when: false
       failed_when: mount_result.rc != 0 and 'already mounted' not in (mount_result.stderr | default('')) and 'filesystem already mounted' not in (mount_result.stderr | default(''))
 
     - name: Create /mnt/gentoo/boot/efi directory
