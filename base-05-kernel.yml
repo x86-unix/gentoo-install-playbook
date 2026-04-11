@@ -156,7 +156,14 @@
         content: |
           add_dracutmodules+=" zfs "
           omit_dracutmodules+=" btrfs "
+          force_drivers+=" zfs spl "
       register: dracut_conf
+
+    - name: Override ZFS modules-load.d to unconditionally load zfs at boot
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/usr/lib/modules-load.d/zfs.conf"
+        mode: "0644"
+        content: "zfs\n"
 
     - name: Generate initramfs if missing or config changed
       ansible.builtin.command: >
