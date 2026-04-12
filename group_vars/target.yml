@@ -8,7 +8,8 @@ init_system: systemd
 
 # Disk
 default_target_disk: sda
-second_disk: ""  # 2台目ディスク（例: sdb）。設定すると /mnt/sdb にマウントされる
+second_disk: "sdb"  # 2台目ディスク（例: sdb）。設定すると /mnt/sdb にマウントされる
+ccache_dir: "/mnt/sdb/ccache"  # ccache ディレクトリ。second_disk 使用時は例: /mnt/sdb/ccache
 
 # System
 default_timezone: Asia/Tokyo

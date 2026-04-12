@@ -93,6 +93,10 @@
       ansible.builtin.command: "{{ chroot }} 'ccache --set-config=max_size=20G'"
       changed_when: false
 
+    - name: Configure ccache directory
+      ansible.builtin.command: "{{ chroot }} 'ccache --set-config=cache_dir={{ ccache_dir }}'"
+      changed_when: false
+
     # --- Install cpuid2cpuflags and detect ---
     - name: Install cpuid2cpuflags
       ansible.builtin.command: "{{ chroot }} 'emerge --noreplace app-portage/cpuid2cpuflags'"
@@ -139,7 +143,7 @@
           MAKEOPTS="-j{{ makeopts_jobs }}"
 
           FEATURES="ccache"
-          CCACHE_DIR="/var/cache/ccache"
+          CCACHE_DIR="{{ ccache_dir }}"
 
           USE="{{ use_flags }}"
 
