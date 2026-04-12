@@ -95,7 +95,7 @@
 
     - name: Ensure ccache directory exists in chroot
       ansible.builtin.file:
-        path: "{{ mountpoint }}{{ ccache_dir }}"
+        path: "{{ mountpoint }}{{ ccache_dir | default('/var/cache/ccache') }}"
         state: directory
         mode: "0775"
         owner: root
@@ -147,7 +147,7 @@
           MAKEOPTS="-j{{ makeopts_jobs }}"
 
           FEATURES="ccache"
-          CCACHE_DIR="{{ ccache_dir }}"
+          CCACHE_DIR="{{ ccache_dir | default('/var/cache/ccache') }}"
 
           USE="{{ use_flags }}"
 

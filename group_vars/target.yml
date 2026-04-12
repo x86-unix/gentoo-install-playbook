@@ -7,9 +7,9 @@ chroot: "chroot {{ mountpoint }} /bin/bash -c"
 init_system: systemd
 
 # Disk
-default_target_disk: sda
+default_target_disk: sda  # インストール先ディスク（例: sda, nvme0n1）
 second_disk: "sdb"  # 2台目物理ディスク名。設定すると ZFS pool を作成し /mnt/sdb にマウントする。不要な場合は空にする
-ccache_dir: "/mnt/sdb/ccache"  # ccache ディレクトリ。second_disk 使用時は例: /mnt/sdb/ccache
+ccache_dir: "/mnt/sdb/ccache"  # ccache ディレクトリ。空の場合は /var/cache/ccache を使用
 
 # System
 default_timezone: Asia/Tokyo
