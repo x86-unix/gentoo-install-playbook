@@ -98,8 +98,6 @@
         path: "{{ mountpoint }}{{ ccache_dir | default('/var/cache/ccache') }}"
         state: directory
         mode: "0775"
-        owner: root
-        group: portage
 
     # --- Install cpuid2cpuflags and detect ---
     - name: Install cpuid2cpuflags
