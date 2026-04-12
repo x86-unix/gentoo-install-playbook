@@ -93,10 +93,6 @@
       ansible.builtin.command: "{{ chroot }} 'ccache --set-config=max_size=20G'"
       changed_when: false
 
-    - name: Configure ccache directory
-      ansible.builtin.command: "{{ chroot }} 'ccache --set-config=cache_dir={{ ccache_dir }}'"
-      changed_when: false
-
     - name: Ensure ccache directory exists in chroot
       ansible.builtin.file:
         path: "{{ mountpoint }}{{ ccache_dir }}"
