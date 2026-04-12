@@ -8,6 +8,7 @@ init_system: systemd
 
 # Disk
 default_target_disk: sda
+second_disk: ""  # 2台目ディスク（例: sdb）。設定すると /mnt/sdb にマウントされる
 
 # System
 default_timezone: Asia/Tokyo
