@@ -237,3 +237,35 @@
     - name: Display result
       ansible.builtin.debug:
         var: layout.stdout_lines
+
+    # --- second disk (optional) ---
+    - name: Setup second disk
+      when: second_disk | default('') != ''
+      block:
+        - name: Check if second disk exists
+          ansible.builtin.stat:
+            path: "/dev/{{ second_disk }}"
+          register: second_disk_check
+          failed_when: not second_disk_check.stat.exists
+
+        - name: Check if second disk is already formatted
+          ansible.builtin.command: blkid /dev/{{ second_disk }}
+          register: second_disk_blkid
+          changed_when: false
+          failed_when: false
+
+        - name: Format second disk as ext4
+          ansible.builtin.command: mkfs.ext4 -F -L {{ second_disk }} /dev/{{ second_disk }}
+          when: second_disk_blkid.rc != 0
+
+        - name: Create mount point
+          ansible.builtin.file:
+            path: "{{ mountpoint }}/mnt/{{ second_disk }}"
+            state: directory
+            mode: "0755"
+
+        - name: Mount second disk
+          ansible.builtin.command: mount /dev/{{ second_disk }} {{ mountpoint }}/mnt/{{ second_disk }}
+          register: second_disk_mount
+          failed_when: second_disk_mount.rc != 0 and 'already mounted' not in (second_disk_mount.stderr | default(''))
+          changed_when: second_disk_mount.rc == 0
