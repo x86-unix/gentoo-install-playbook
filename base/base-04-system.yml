@@ -122,6 +122,3 @@
           # /etc/fstab - ZFS datasets are mounted by ZFS, not fstab
           # Only non-ZFS filesystems need entries here
           {{ disk_dev }}{{ part_suffix }}2  none  swap  sw  0 0
-          {% if second_disk | default('') != '' %}
-          LABEL={{ second_disk }}  /mnt/{{ second_disk }}  ext4  defaults  0 2
-          {% endif %}
