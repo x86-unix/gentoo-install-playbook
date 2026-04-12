@@ -149,7 +149,7 @@
             mode: "0644"
             content: |
               [Match]
-              Name={{ wifi_nic.stdout }}
+              Type=wlan
 
               [Network]
               DHCP=yes
