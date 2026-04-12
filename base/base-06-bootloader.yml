@@ -115,14 +115,13 @@
 
     - name: Detect GRUB device number for rpool
       ansible.builtin.shell: >
-        {{ chroot }} 'grub-probe --target=drive /dev/{{ zpool_disk.stdout }}{{ part_suffix }}{{ rpool_partnum.stdout }} 2>/dev/null'
+        {{ chroot }} 'grub-probe --target=drive /dev/{{ zpool_disk.stdout }}{{ part_suffix }}{{ rpool_partnum.stdout }}'
       register: grub_drive
       changed_when: false
-      failed_when: false
 
     - name: Set GRUB root device
       ansible.builtin.set_fact:
-        grub_root: "{{ grub_drive.stdout | default('hd0') }},gpt{{ rpool_partnum.stdout }}"
+        grub_root: "{{ grub_drive.stdout }},gpt{{ rpool_partnum.stdout }}"
 
     - name: Write grub.cfg
       ansible.builtin.copy:
