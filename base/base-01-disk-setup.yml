@@ -239,40 +239,25 @@
         var: layout.stdout_lines
 
     # --- second disk (optional) ---
-    - name: Setup second disk
+    # second_disk が設定されている場合、ZFS データセットとして /mnt/<disk> にマウントする
+    - name: Setup second disk as ZFS dataset
       when: second_disk | default('') != ''
       block:
-        - name: Check if second disk exists
-          ansible.builtin.stat:
-            path: "/dev/{{ second_disk }}"
-          register: second_disk_check
-          failed_when: not second_disk_check.stat.exists
-
-        - name: Check if second disk is already formatted
-          ansible.builtin.command: blkid /dev/{{ second_disk }}
-          register: second_disk_blkid
+        - name: Check if ZFS dataset for second disk exists
+          ansible.builtin.shell: zfs list rpool/{{ second_disk }} 2>/dev/null && echo exists || echo notfound
+          register: second_disk_dataset
           changed_when: false
-          failed_when: false
 
-        - name: Format second disk as ext4
-          ansible.builtin.command: mkfs.ext4 -F -L {{ second_disk }} /dev/{{ second_disk }}
-          when: second_disk_blkid.rc != 0
-
-        - name: Create mount point
-          ansible.builtin.file:
-            path: "{{ mountpoint }}/mnt/{{ second_disk }}"
-            state: directory
-            mode: "0755"
-
-        - name: Mount second disk
-          ansible.builtin.command: mount /dev/{{ second_disk }} {{ mountpoint }}/mnt/{{ second_disk }}
-          register: second_disk_mount
-          failed_when: second_disk_mount.rc != 0 and 'already mounted' not in (second_disk_mount.stderr | default(''))
-          changed_when: second_disk_mount.rc == 0
+        - name: Create ZFS dataset for second disk
+          ansible.builtin.command: >
+            zfs create
+            -o mountpoint=/mnt/{{ second_disk }}
+            rpool/{{ second_disk }}
+          when: second_disk_dataset.stdout == 'notfound'
 
         - name: Ensure ccache directory on second disk
           ansible.builtin.file:
-            path: "{{ mountpoint }}{{ ccache_dir }}"
+            path: "{{ mountpoint }}/mnt/{{ second_disk }}/ccache"
             state: directory
             mode: "0775"
           when: ccache_dir | default('') != ''
