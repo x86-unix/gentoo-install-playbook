@@ -1,0 +1,50 @@
+---
+# Install Wayland compositor stack (labwc + essentials)
+# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+
+- name: "Extra: Wayland (labwc)"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Enable wayland USE flags
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/wayland
+        mode: "0644"
+        content: |
+          */* wayland -X -gtk3 -qt5 -qt6
+          gui-apps/waybar tray network pulseaudio
+          >=media-libs/freetype-2.14.3 harfbuzz
+          >=dev-libs/libdbusmenu-16.04.0-r4 gtk3
+          >=media-plugins/alsa-plugins-1.2.12 pulseaudio
+
+    - name: Accept ~amd64 keyword for labwc
+      ansible.builtin.copy:
+        dest: /etc/portage/package.accept_keywords/wayland
+        mode: "0644"
+        content: |
+          gui-wm/labwc ~amd64
+
+    - name: Install labwc and essentials
+      ansible.builtin.command: >
+        emerge --noreplace
+        gui-wm/labwc
+        gui-apps/waybar
+        gui-apps/foot
+        gui-apps/wofi
+        gui-apps/wl-clipboard
+        x11-misc/xdg-user-dirs
+      register: labwc_install
+      changed_when: "'Installing' in labwc_install.stdout"
+
+    - name: Enable seat service (seatd)
+      ansible.builtin.systemd:
+        name: seatd
+        enabled: true
+        state: started
+
+    - name: Add user to seat and video groups
+      ansible.builtin.user:
+        name: "{{ default_user }}"
+        groups: seat,video
+        append: true

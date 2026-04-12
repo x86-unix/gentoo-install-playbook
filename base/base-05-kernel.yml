@@ -4,14 +4,13 @@
   gather_facts: false
 
   tasks:
-    # --- Step 1: Install kernel sources, firmware, and ccache ---
-    - name: Install kernel sources, firmware, and ccache
+    # --- Step 1: Install kernel sources and firmware ---
+    - name: Install kernel sources and firmware
       ansible.builtin.command: >
         {{ chroot }} 'emerge --noreplace
         sys-kernel/gentoo-sources
         sys-kernel/linux-firmware
-        sys-kernel/installkernel
-        dev-util/ccache'
+        sys-kernel/installkernel'
       register: ksrc_emerge
       changed_when: "'Installing' in ksrc_emerge.stdout"
 

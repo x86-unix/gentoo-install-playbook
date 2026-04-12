@@ -1,0 +1,43 @@
+---
+# Install PipeWire sound server
+# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+
+- name: "Extra: Sound (pipewire)"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Install pipewire and wireplumber
+      ansible.builtin.command: >
+        emerge --noreplace
+        media-video/pipewire
+        media-video/wireplumber
+      register: pipewire_install
+      changed_when: "'Installing' in pipewire_install.stdout"
+
+    - name: Ensure systemd user default.target.wants directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/user/default.target.wants
+        state: directory
+        mode: "0755"
+
+    - name: Enable pipewire user service
+      ansible.builtin.copy:
+        dest: /etc/systemd/user/default.target.wants/pipewire.service
+        src: /usr/lib/systemd/user/pipewire.service
+        remote_src: true
+        mode: "0644"
+
+    - name: Enable pipewire-pulse user service
+      ansible.builtin.copy:
+        dest: /etc/systemd/user/default.target.wants/pipewire-pulse.service
+        src: /usr/lib/systemd/user/pipewire-pulse.service
+        remote_src: true
+        mode: "0644"
+
+    - name: Enable wireplumber user service
+      ansible.builtin.copy:
+        dest: /etc/systemd/user/default.target.wants/wireplumber.service
+        src: /usr/lib/systemd/user/wireplumber.service
+        remote_src: true
+        mode: "0644"

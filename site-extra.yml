@@ -5,13 +5,25 @@
 # Prerequisites: Base system booted from site-base.yml
 
 - name: Import portage git sync
-  ansible.builtin.import_playbook: extra/extra-00-portage-git-sync.yml
+  ansible.builtin.import_playbook: extra/extra-portage-git.yml
 
-- name: Import base services
-  ansible.builtin.import_playbook: extra/extra-01-base-services.yml
+- name: Import services
+  ansible.builtin.import_playbook: extra/extra-services.yml
 
-# - name: Import wayland desktop
-#   ansible.builtin.import_playbook: extra/extra-01-wayland.yml
+- name: Import CLI tools
+  ansible.builtin.import_playbook: extra/extra-cli-tools.yml
 
-# - name: Import development tools
-#   ansible.builtin.import_playbook: extra/extra-02-devtools.yml
+- name: Import account
+  ansible.builtin.import_playbook: extra/extra-account.yml
+
+- name: Import wayland desktop
+  ansible.builtin.import_playbook: extra/extra-wayland.yml
+
+- name: Import sound
+  ansible.builtin.import_playbook: extra/extra-sound.yml
+
+- name: Import IME
+  ansible.builtin.import_playbook: extra/extra-ime.yml
+
+- name: Import GUI tools
+  ansible.builtin.import_playbook: extra/extra-gui-tools.yml

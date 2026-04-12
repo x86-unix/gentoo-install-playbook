@@ -1,0 +1,36 @@
+---
+# Install fcitx5 + SKK input method
+# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+
+- name: "Extra: IME (fcitx5 + SKK)"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Enable fcitx5 USE flags
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/ime
+        mode: "0644"
+        content: |
+          app-i18n/fcitx5 wayland -X
+          app-i18n/fcitx5-gtk wayland -X
+
+    - name: Install fcitx5 and SKK
+      ansible.builtin.command: >
+        emerge --noreplace
+        app-i18n/fcitx5
+        app-i18n/fcitx5-skk
+        app-i18n/fcitx5-gtk
+        app-i18n/fcitx5-configtool
+      register: fcitx5_install
+      changed_when: "'Installing' in fcitx5_install.stdout"
+
+    - name: Configure fcitx5 environment
+      ansible.builtin.copy:
+        dest: /etc/environment.d/90-fcitx5.conf
+        mode: "0644"
+        content: |
+          GTK_IM_MODULE=fcitx
+          QT_IM_MODULE=fcitx
+          XMODIFIERS=@im=fcitx
+          SDL_IM_MODULE=fcitx
