@@ -115,6 +115,16 @@
       when: need_create
       failed_when: false
 
+    - name: Inform kernel after wipe
+      ansible.builtin.command: partprobe {{ disk_dev }}
+      when: need_create
+      failed_when: false
+
+    - name: Wait for kernel to re-read partition table
+      ansible.builtin.pause:
+        seconds: 2
+      when: need_create
+
     - name: Create BIOS boot partition (2M)
       ansible.builtin.command: sgdisk -n 1:0:+2M -t 1:EF02 {{ disk_dev }}
       when: need_create and boot_mode == 'bios'
