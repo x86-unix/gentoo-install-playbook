@@ -113,12 +113,6 @@
         state: directory
         mode: "0755"
 
-    - name: Set GRUB root device
-      # UEFI: ESP occupies hd0, so nvme/sata disk is hd1
-      # BIOS: no ESP, disk is hd0
-      ansible.builtin.set_fact:
-        grub_root: "{{ 'hd1' if boot_mode == 'uefi' else 'hd0' }},gpt{{ rpool_partnum.stdout }}"
-
     - name: Write grub.cfg
       ansible.builtin.copy:
         dest: "{{ mountpoint }}/boot/grub/grub.cfg"
@@ -136,7 +130,7 @@
           {% endif %}
 
           menuentry "Gentoo - {{ kernel_version }}" {
-              set root=({{ grub_root }})
+              search --no-floppy --label --set=root rpool
               linux /ROOT/gentoo@/boot/{{ kernel_image.stdout }} root=zfs:rpool/ROOT/gentoo
               initrd /ROOT/gentoo@/boot/initramfs-{{ kernel_version }}.img
           }
