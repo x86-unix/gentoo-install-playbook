@@ -114,8 +114,7 @@
         mode: "0755"
 
     - name: Detect GRUB device number for rpool
-      ansible.builtin.shell: >
-        {{ chroot }} 'grub-probe --target=drive /dev/{{ zpool_disk.stdout }}{{ part_suffix }}{{ rpool_partnum.stdout }}'
+      ansible.builtin.shell: grub-probe --target=drive /dev/{{ zpool_disk.stdout }}{{ part_suffix }}{{ rpool_partnum.stdout }}
       register: grub_drive
       changed_when: false
 
