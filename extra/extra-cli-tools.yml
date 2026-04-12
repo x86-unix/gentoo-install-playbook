@@ -7,8 +7,8 @@
   gather_facts: false
 
   tasks:
-    - name: Install bind-tools, netcat, vim, sudo and bash-completion
-      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-editors/vim app-admin/sudo app-shells/bash-completion
+    - name: Install bind-tools, netcat, sudo and bash-completion
+      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-admin/sudo app-shells/bash-completion
       register: tools_install
       changed_when: "'Installing' in tools_install.stdout"
 
