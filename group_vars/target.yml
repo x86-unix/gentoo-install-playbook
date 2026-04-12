@@ -13,7 +13,7 @@ ccache_dir: ""  # ccache ディレクトリ。空の場合は /var/cache/ccache 
 
 # System
 default_timezone: Asia/Tokyo
-default_hostname: zfs-gentoo
+default_hostname: zfs-gentoo-note
 
 # Portage
 gentoo_mirror: https://distfiles.gentoo.org
