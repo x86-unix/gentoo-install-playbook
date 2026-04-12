@@ -145,7 +145,7 @@
           MAKEOPTS="-j{{ makeopts_jobs }}"
 
           FEATURES="ccache"
-          CCACHE_DIR="{{ ccache_dir | default('/var/cache/ccache') }}"
+          CCACHE_DIR="{{ ccache_dir if ccache_dir | default('') != '' else '/var/cache/ccache' }}"
 
           USE="{{ use_flags }}"
 
