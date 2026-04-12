@@ -1,29 +1,90 @@
 ---
-# Install fcitx5 + SKK input method
-# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+# Install fcitx5 + SKK (built from source)
+# Usage: ansible-playbook -i inventory.ini extra/extra-ime.yml --ask-pass
 
 - name: "Extra: IME (fcitx5 + SKK)"
   hosts: target
   gather_facts: false
 
+  vars:
+    build_dir: /tmp/fcitx5-build
+
   tasks:
-    - name: Enable fcitx5 USE flags
+    - name: Enable USE flags for IME build
       ansible.builtin.copy:
         dest: /etc/portage/package.use/ime
         mode: "0644"
         content: |
           app-i18n/fcitx5 wayland -X
           app-i18n/fcitx5-gtk wayland -X
+          app-dicts/myspell-en l10n_en-US
 
-    - name: Install fcitx5 and SKK
+    - name: Accept ~amd64 keyword for libskk
+      ansible.builtin.copy:
+        dest: /etc/portage/package.accept_keywords/ime
+        mode: "0644"
+        content: |
+          app-i18n/libskk ~amd64
+
+    - name: Install build dependencies and libskk/skk-jisyo
       ansible.builtin.command: >
         emerge --noreplace
-        app-i18n/fcitx5
-        app-i18n/fcitx5-skk
-        app-i18n/fcitx5-gtk
-        app-i18n/fcitx5-configtool
-      register: fcitx5_install
-      changed_when: "'Installing' in fcitx5_install.stdout"
+        dev-build/cmake
+        kde-frameworks/extra-cmake-modules
+        dev-libs/gobject-introspection
+        app-i18n/skk-jisyo
+        app-text/iso-codes
+        app-text/enchant
+        dev-cpp/nlohmann_json
+        x11-libs/libxkbcommon
+        dev-libs/json-c
+        dev-libs/libuv
+        x11-libs/libxcb
+      register: deps_install
+      changed_when: "'Installing' in deps_install.stdout"
+
+    - name: Upgrade libskk to 1.1.x
+      ansible.builtin.command: emerge --update app-i18n/libskk
+      register: libskk_install
+      changed_when: "'Installing' in libskk_install.stdout"
+
+    - name: Ensure build directory
+      ansible.builtin.file:
+        path: "{{ build_dir }}"
+        state: directory
+        mode: "0755"
+
+    # --- fcitx5 ---
+    - name: Clone fcitx5
+      ansible.builtin.git:
+        repo: https://github.com/fcitx/fcitx5.git
+        dest: "{{ build_dir }}/fcitx5"
+        depth: 1
+
+    - name: Build and install fcitx5
+      ansible.builtin.shell: |
+        cd {{ build_dir }}/fcitx5
+        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DENABLE_WAYLAND=ON -DENABLE_X11=OFF
+        make -C build -j$(nproc)
+        make -C build install
+      args:
+        creates: /usr/bin/fcitx5
+
+    # --- fcitx5-skk ---
+    - name: Clone fcitx5-skk
+      ansible.builtin.git:
+        repo: https://github.com/fcitx/fcitx5-skk.git
+        dest: "{{ build_dir }}/fcitx5-skk"
+        depth: 1
+
+    - name: Build and install fcitx5-skk
+      ansible.builtin.shell: |
+        cd {{ build_dir }}/fcitx5-skk
+        cmake -B build -DCMAKE_INSTALL_PREFIX=/usr -DSKK_PATH=/usr/share/skk/ -DENABLE_QT=OFF
+        make -C build -j$(nproc)
+        make -C build install
+      args:
+        creates: /usr/lib64/fcitx5/skk.so
 
     - name: Configure fcitx5 environment
       ansible.builtin.copy:

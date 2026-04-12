@@ -17,6 +17,7 @@
           >=media-libs/freetype-2.14.3 harfbuzz
           >=dev-libs/libdbusmenu-16.04.0-r4 gtk3
           >=media-plugins/alsa-plugins-1.2.12 pulseaudio
+          sys-auth/seatd server
 
     - name: Accept ~amd64 keyword for labwc
       ansible.builtin.copy:
@@ -36,6 +37,11 @@
         x11-misc/xdg-user-dirs
       register: labwc_install
       changed_when: "'Installing' in labwc_install.stdout"
+
+    - name: Rebuild seatd with server USE flag
+      ansible.builtin.command: emerge --oneshot sys-auth/seatd
+      register: seatd_rebuild
+      changed_when: "'Installing' in seatd_rebuild.stdout"
 
     - name: Enable seat service (seatd)
       ansible.builtin.systemd:
