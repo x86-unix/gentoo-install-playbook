@@ -35,6 +35,13 @@
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin yes'
 
+    # --- Disable console beep ---
+    - name: Disable console beep
+      ansible.builtin.copy:
+        dest: "{{ mountpoint }}/etc/modprobe.d/nobeep.conf"
+        content: "blacklist pcspkr\n"
+        mode: "0644"
+
     # --- Install vim ---
     - name: Install vim
       ansible.builtin.command: "{{ chroot }} 'emerge --noreplace app-editors/vim'"
