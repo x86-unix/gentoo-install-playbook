@@ -122,3 +122,49 @@
           # /etc/fstab - ZFS datasets are mounted by ZFS, not fstab
           # Only non-ZFS filesystems need entries here
           {{ disk_dev }}{{ part_suffix }}2  none  swap  sw  0 0
+
+    # --- WiFi (only when WiFi NIC is detected) ---
+    - name: Detect WiFi NIC
+      ansible.builtin.shell: |
+        ip -o link show | awk -F': ' '/wlan|wlp/{print $2}' | head -1
+      register: wifi_nic
+      changed_when: false
+
+    - name: Setup WiFi with iwd
+      when: wifi_nic.stdout != ''
+      block:
+        - name: Install iwd
+          ansible.builtin.command: "{{ chroot }} 'emerge --noreplace net-wireless/iwd'"
+          register: iwd_install
+          changed_when: "'Installing' in iwd_install.stdout"
+
+        - name: Enable iwd service
+          ansible.builtin.command: "{{ chroot }} 'systemctl enable iwd'"
+          register: iwd_enable
+          changed_when: "'Created symlink' in iwd_enable.stdout + iwd_enable.stderr"
+
+        - name: Create WiFi networkd config
+          ansible.builtin.copy:
+            dest: "{{ mountpoint }}/etc/systemd/network/25-wireless.network"
+            mode: "0644"
+            content: |
+              [Match]
+              Name={{ wifi_nic.stdout | regex_replace('[0-9].*$', '*') }}
+
+              [Network]
+              DHCP=yes
+
+        - name: Ensure iwd config directory
+          ansible.builtin.file:
+            path: "{{ mountpoint }}/var/lib/iwd"
+            state: directory
+            mode: "0700"
+
+        - name: Write iwd SSID config
+          ansible.builtin.copy:
+            dest: "{{ mountpoint }}/var/lib/iwd/{{ wifi_ssid }}.psk"
+            mode: "0600"
+            content: |
+              [Security]
+              Passphrase={{ wifi_password }}
+          when: wifi_ssid | default('') != ''
