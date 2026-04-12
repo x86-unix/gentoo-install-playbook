@@ -115,6 +115,11 @@
       when: need_create
       failed_when: false
 
+    - name: Wipe filesystem signatures
+      ansible.builtin.command: wipefs -a {{ disk_dev }}
+      when: need_create
+      failed_when: false
+
     - name: Inform kernel after wipe
       ansible.builtin.command: partprobe {{ disk_dev }}
       when: need_create
@@ -122,7 +127,7 @@
 
     - name: Wait for kernel to re-read partition table
       ansible.builtin.pause:
-        seconds: 2
+        seconds: 3
       when: need_create
 
     - name: Create BIOS boot partition (2M)
