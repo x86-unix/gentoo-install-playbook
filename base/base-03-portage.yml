@@ -123,25 +123,6 @@
           - "MAKEOPTS: -j{{ makeopts_jobs }}"
           - "{{ cpuflags_final.stdout }}"
 
-    # --- Pre-configure USE flags for GUI tools ---
-    # google-chrome/vscode は gtk+[X] を必須で要求する。
-    # waybar の依存で cairomm/gtkmm が先にビルドされるため、
-    # ここで +X を設定しておかないと extra-gui-tools 実行時に
-    # スロットコンフリクトが発生する。
-    - name: Write package.use/gui-tools
-      ansible.builtin.copy:
-        dest: "{{ mountpoint }}/etc/portage/package.use/gui-tools"
-        mode: "0644"
-        content: |
-          x11-libs/cairo X
-          x11-libs/gtk+ X
-          media-libs/libepoxy X
-          media-libs/libglvnd X
-          dev-cpp/cairomm X
-          dev-cpp/gtkmm X
-          app-text/xmlto text
-          app-crypt/gcr gtk
-
     # --- Write complete make.conf in one shot ---
     - name: Write make.conf
       ansible.builtin.copy:
