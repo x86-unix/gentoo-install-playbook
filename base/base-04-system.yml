@@ -149,7 +149,7 @@
             mode: "0644"
             content: |
               [Match]
-              Name={{ wifi_nic.stdout | regex_replace('[0-9].*$', '*') }}
+              Name={{ wifi_nic.stdout }}
 
               [Network]
               DHCP=yes
