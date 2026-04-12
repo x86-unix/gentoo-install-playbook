@@ -99,6 +99,28 @@
             scripts/config --module CONFIG_CRYPTO_LZ4HC
             scripts/config --enable CONFIG_CRYPTO_ZSTD
 
+        - name: Detect WiFi NIC on live system
+          ansible.builtin.shell: ip -o link show | awk -F': ' '/wlan|wlp/{print $2}' | head -1
+          register: live_wifi_nic
+          changed_when: false
+
+        - name: Enable WiFi/iwd-required crypto kernel options
+          ansible.builtin.shell: |
+            cd {{ mountpoint }}{{ ksrc }}
+            scripts/config --enable CONFIG_CRYPTO_USER_API_HASH
+            scripts/config --enable CONFIG_CRYPTO_USER_API_SKCIPHER
+            scripts/config --enable CONFIG_CRYPTO_ECB
+            scripts/config --enable CONFIG_CRYPTO_MD5
+            scripts/config --enable CONFIG_CRYPTO_CBC
+            scripts/config --enable CONFIG_CRYPTO_SHA256
+            scripts/config --enable CONFIG_CRYPTO_AES
+            scripts/config --enable CONFIG_CRYPTO_DES
+            scripts/config --enable CONFIG_CRYPTO_CMAC
+            scripts/config --enable CONFIG_CRYPTO_HMAC
+            scripts/config --enable CONFIG_CRYPTO_SHA512
+            scripts/config --enable CONFIG_CRYPTO_SHA1
+          when: live_wifi_nic.stdout != ''
+
         - name: Olddefconfig
           ansible.builtin.command: "{{ chroot }} 'make -C {{ ksrc }} olddefconfig'"
 
