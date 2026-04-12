@@ -143,6 +143,28 @@
           register: iwd_enable
           changed_when: "'Created symlink' in iwd_enable.stdout + iwd_enable.stderr"
 
+        - name: Unblock WiFi via rfkill at boot
+          ansible.builtin.copy:
+            dest: "{{ mountpoint }}/etc/systemd/system/rfkill-unblock-wifi.service"
+            mode: "0644"
+            content: |
+              [Unit]
+              Description=Unblock WiFi rfkill
+              Before=iwd.service
+
+              [Service]
+              Type=oneshot
+              ExecStart=/usr/sbin/rfkill unblock wifi
+              RemainAfterExit=yes
+
+              [Install]
+              WantedBy=multi-user.target
+
+        - name: Enable rfkill-unblock-wifi service
+          ansible.builtin.command: "{{ chroot }} 'systemctl enable rfkill-unblock-wifi'"
+          register: rfkill_enable
+          changed_when: "'Created symlink' in rfkill_enable.stdout + rfkill_enable.stderr"
+
         - name: Create WiFi networkd config
           ansible.builtin.copy:
             dest: "{{ mountpoint }}/etc/systemd/network/25-wireless.network"
