@@ -176,6 +176,9 @@
     - name: Generate initramfs
       ansible.builtin.command: >
         {{ chroot }} 'dracut --force --add zfs --kver {{ kernel_version }} /boot/initramfs-{{ kernel_version }}.img'
+      changed_when: false
+      register: dracut_result
+      changed_when: "'Creating initramfs image file' in dracut_result.stderr"
 
     - name: Show installed kernel
       ansible.builtin.shell: >
