@@ -149,7 +149,7 @@
             mode: "0644"
             content: |
               [Match]
-              Type=wlan
+              Name=wl*
 
               [Network]
               DHCP=yes
