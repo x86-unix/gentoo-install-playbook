@@ -17,25 +17,25 @@
       when: confirm_prompt.user_input != 'yes'
 
 - name: Import preflight
-  ansible.builtin.import_playbook: base-00-preflight.yml
+  ansible.builtin.import_playbook: base/base-00-preflight.yml
 
 - name: Import disk setup
-  ansible.builtin.import_playbook: base-01-disk-setup.yml
+  ansible.builtin.import_playbook: base/base-01-disk-setup.yml
 
 - name: Import stage3
-  ansible.builtin.import_playbook: base-02-stage3.yml
+  ansible.builtin.import_playbook: base/base-02-stage3.yml
 
 - name: Import portage
-  ansible.builtin.import_playbook: base-03-portage.yml
+  ansible.builtin.import_playbook: base/base-03-portage.yml
 
 - name: Import system config
-  ansible.builtin.import_playbook: base-04-system.yml
+  ansible.builtin.import_playbook: base/base-04-system.yml
 
 - name: Import kernel build
-  ansible.builtin.import_playbook: base-05-kernel.yml
+  ansible.builtin.import_playbook: base/base-05-kernel.yml
 
 - name: Import bootloader
-  ansible.builtin.import_playbook: base-06-bootloader.yml
+  ansible.builtin.import_playbook: base/base-06-bootloader.yml
 
 - name: Import finalize
-  ansible.builtin.import_playbook: base-07-finalize.yml
+  ansible.builtin.import_playbook: base/base-07-finalize.yml

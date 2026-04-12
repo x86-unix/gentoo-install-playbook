@@ -1,0 +1,24 @@
+---
+# Install and enable system services
+# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+
+- name: "Extra: Services"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Check if cronie is installed
+      ansible.builtin.command: qlist -Iv sys-process/cronie
+      register: cronie_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install cronie
+      ansible.builtin.command: emerge --noreplace sys-process/cronie
+      when: cronie_check.rc != 0
+
+    - name: Enable cronie
+      ansible.builtin.systemd:
+        name: cronie
+        enabled: true
+        state: started

@@ -70,6 +70,12 @@
       ansible.builtin.command: "{{ chroot }} 'emerge-webrsync'"
       when: not portage_tree.stat.exists
 
+    # --- Install ccache ---
+    - name: Install ccache
+      ansible.builtin.command: "{{ chroot }} 'emerge --noreplace dev-util/ccache'"
+      register: ccache_install
+      changed_when: "'Installing' in ccache_install.stdout"
+
     # --- Install cpuid2cpuflags and detect ---
     - name: Install cpuid2cpuflags
       ansible.builtin.command: "{{ chroot }} 'emerge --noreplace app-portage/cpuid2cpuflags'"
@@ -114,6 +120,9 @@
           FFLAGS="${COMMON_FLAGS}"
 
           MAKEOPTS="-j{{ makeopts_jobs }}"
+
+          FEATURES="ccache"
+          CCACHE_DIR="/var/cache/ccache"
 
           USE="{{ use_flags }}"
 

@@ -15,7 +15,7 @@ default_hostname: zfs-gentoo
 
 # Portage
 gentoo_mirror: https://distfiles.gentoo.org
-use_flags: "zfs -X -wayland -gtk -qt5 -qt6"
+use_flags: "zfs wayland -X -gtk -qt5 -qt6"
 
 # Locale
 default_locales:
