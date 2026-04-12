@@ -269,3 +269,10 @@
           register: second_disk_mount
           failed_when: second_disk_mount.rc != 0 and 'already mounted' not in (second_disk_mount.stderr | default(''))
           changed_when: second_disk_mount.rc == 0
+
+        - name: Ensure ccache directory on second disk
+          ansible.builtin.file:
+            path: "{{ mountpoint }}{{ ccache_dir }}"
+            state: directory
+            mode: "0775"
+          when: ccache_dir | default('') != ''

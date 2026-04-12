@@ -97,6 +97,14 @@
       ansible.builtin.command: "{{ chroot }} 'ccache --set-config=cache_dir={{ ccache_dir }}'"
       changed_when: false
 
+    - name: Ensure ccache directory exists in chroot
+      ansible.builtin.file:
+        path: "{{ mountpoint }}{{ ccache_dir }}"
+        state: directory
+        mode: "0775"
+        owner: root
+        group: portage
+
     # --- Install cpuid2cpuflags and detect ---
     - name: Install cpuid2cpuflags
       ansible.builtin.command: "{{ chroot }} 'emerge --noreplace app-portage/cpuid2cpuflags'"
