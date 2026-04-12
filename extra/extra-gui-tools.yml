@@ -1,19 +1,25 @@
 ---
-# Install GUI tools (binary packages)
-# Usage: ansible-playbook -i inventory.ini site-extra.yml --ask-pass
+# Install GUI tools via GURU overlay
+# Usage: ansible-playbook -i inventory.ini extra/extra-gui-tools.yml --ask-pass
 
 - name: "Extra: GUI tools"
   hosts: target
   gather_facts: false
 
   tasks:
-    - name: Accept ~amd64 keyword for google-chrome and vscode
-      ansible.builtin.copy:
-        dest: /etc/portage/package.accept_keywords/gui-tools
-        mode: "0644"
-        content: |
-          www-client/google-chrome ~amd64
-          app-editors/vscode ~amd64
+    - name: Install eselect-repository and git
+      ansible.builtin.command: emerge --noreplace app-eselect/eselect-repository dev-vcs/git
+      register: eselect_install
+      changed_when: "'Installing' in eselect_install.stdout"
+
+    - name: Enable GURU overlay
+      ansible.builtin.command: eselect repository enable guru
+      args:
+        creates: /var/db/repos/guru
+
+    - name: Sync GURU overlay
+      ansible.builtin.command: emaint sync -r guru
+      changed_when: false
 
     - name: Accept licenses for gui tools
       ansible.builtin.copy:
@@ -25,5 +31,5 @@
 
     - name: Install google-chrome and vscode
       ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode
-      register: chrome_install
-      changed_when: "'Installing' in chrome_install.stdout"
+      register: gui_install
+      changed_when: "'Installing' in gui_install.stdout"

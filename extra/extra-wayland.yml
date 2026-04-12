@@ -39,7 +39,7 @@
       changed_when: "'Installing' in labwc_install.stdout"
 
     - name: Rebuild seatd with server USE flag
-      ansible.builtin.command: emerge --oneshot sys-auth/seatd
+      ansible.builtin.command: emerge --noreplace sys-auth/seatd
       register: seatd_rebuild
       changed_when: "'Installing' in seatd_rebuild.stdout"
 
