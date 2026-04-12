@@ -7,9 +7,9 @@ chroot: "chroot {{ mountpoint }} /bin/bash -c"
 init_system: systemd
 
 # Disk
-default_target_disk: sda  # インストール先ディスク（例: sda, nvme0n1）
-second_disk: "sdb"  # 2台目物理ディスク名。設定すると ZFS pool を作成し /mnt/sdb にマウントする。不要な場合は空にする
-ccache_dir: "/mnt/sdb/ccache"  # ccache ディレクトリ。空の場合は /var/cache/ccache を使用
+default_target_disk: nvme0n1  # インストール先ディスク（例: sda, nvme0n1）
+second_disk: ""  # 2台目物理ディスク名。設定すると ZFS pool を作成し /mnt/sdb にマウントする。不要な場合は空にする
+ccache_dir: ""  # ccache ディレクトリ。空の場合は /var/cache/ccache を使用
 
 # System
 default_timezone: Asia/Tokyo
@@ -32,4 +32,4 @@ default_root_password: root
 # User
 default_user: gentoo
 default_user_password: gentoo
-sudo_nopasswd: false
+sudo_nopasswd: true
