@@ -157,6 +157,7 @@
           add_dracutmodules+=" zfs "
           omit_dracutmodules+=" btrfs "
           force_drivers+=" zfs spl "
+          install_items+=" /etc/zfs/zpool.cache "
       register: dracut_conf
 
     - name: Override ZFS modules-load.d to unconditionally load zfs at boot
@@ -166,10 +167,15 @@
         content: "zfs\n"
       register: modules_load_conf
 
-    - name: Generate initramfs if missing or config changed
+    - name: Ensure zpool.cache exists before dracut
+      ansible.builtin.shell: |
+        mkdir -p {{ mountpoint }}/etc/zfs
+        zpool set cachefile={{ mountpoint }}/etc/zfs/zpool.cache rpool
+      changed_when: false
+
+    - name: Generate initramfs
       ansible.builtin.command: >
         {{ chroot }} 'dracut --force --add zfs --kver {{ kernel_version }} /boot/initramfs-{{ kernel_version }}.img'
-      when: existing_initramfs.stdout == '' or dracut_conf.changed or modules_load_conf.changed
 
     - name: Show installed kernel
       ansible.builtin.shell: >
