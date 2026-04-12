@@ -100,7 +100,7 @@
             scripts/config --enable CONFIG_CRYPTO_ZSTD
 
         - name: Detect WiFi NIC on live system
-          ansible.builtin.shell: ip -o link show | awk -F': ' '/wlan|wlp/{print $2}' | head -1
+          ansible.builtin.shell: "ip -o link show | awk -F': ' '/wlan|wlp/{print $2}' | head -1"
           register: live_wifi_nic
           changed_when: false
 
