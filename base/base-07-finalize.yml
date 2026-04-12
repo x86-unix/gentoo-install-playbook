@@ -35,6 +35,12 @@
         regexp: '^#?PermitRootLogin'
         line: 'PermitRootLogin yes'
 
+    # --- Install vi ---
+    - name: Install vi
+      ansible.builtin.command: "{{ chroot }} 'emerge --noreplace app-editors/vi'"
+      register: vi_install
+      changed_when: "'Installing' in vi_install.stdout"
+
     # --- Set ZFS boot dataset ---
     - name: Set bootfs property
       ansible.builtin.command: zpool set bootfs=rpool/ROOT/gentoo rpool
