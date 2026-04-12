@@ -35,11 +35,20 @@
         rm -rf /var/db/repos/gentoo
       changed_when: false
 
+    - name: Check if portage tree exists
+      ansible.builtin.stat:
+        path: /var/db/repos/gentoo/profiles
+      register: portage_tree
+
+    - name: Sync portage tree via git
+      ansible.builtin.command: emaint sync -r gentoo
+      when: repos_conf.changed or not portage_tree.stat.exists
+
     - name: Install eix
       ansible.builtin.command: emerge --noreplace app-portage/eix
       register: eix_install
       changed_when: "'Installing' in eix_install.stdout"
 
-    - name: Sync portage tree and update eix database
-      ansible.builtin.command: eix-sync
-      when: repos_conf.changed or eix_install.changed
+    - name: Update eix database
+      ansible.builtin.command: eix-update
+      when: repos_conf.changed or not portage_tree.stat.exists or eix_install.changed
