@@ -89,6 +89,10 @@
       register: ccache_install
       changed_when: "'Installing' in ccache_install.stdout"
 
+    - name: Configure ccache max_size
+      ansible.builtin.command: "{{ chroot }} 'ccache --set-config=max_size=20G'"
+      changed_when: false
+
     # --- Install cpuid2cpuflags and detect ---
     - name: Install cpuid2cpuflags
       ansible.builtin.command: "{{ chroot }} 'emerge --noreplace app-portage/cpuid2cpuflags'"
@@ -120,6 +124,10 @@
           - "{{ cpuflags_final.stdout }}"
 
     # --- Pre-configure USE flags for GUI tools ---
+    # google-chrome/vscode は gtk+[X] を必須で要求する。
+    # waybar の依存で cairomm/gtkmm が先にビルドされるため、
+    # ここで +X を設定しておかないと extra-gui-tools 実行時に
+    # スロットコンフリクトが発生する。
     - name: Write package.use/gui-tools
       ansible.builtin.copy:
         dest: "{{ mountpoint }}/etc/portage/package.use/gui-tools"
