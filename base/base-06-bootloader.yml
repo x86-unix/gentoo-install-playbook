@@ -113,14 +113,11 @@
         state: directory
         mode: "0755"
 
-    - name: Detect GRUB device number for rpool
-      ansible.builtin.shell: grub-probe --target=drive /dev/{{ zpool_disk.stdout }}{{ part_suffix }}{{ rpool_partnum.stdout }}
-      register: grub_drive
-      changed_when: false
-
     - name: Set GRUB root device
+      # UEFI: ESP occupies hd0, so nvme/sata disk is hd1
+      # BIOS: no ESP, disk is hd0
       ansible.builtin.set_fact:
-        grub_root: "{{ grub_drive.stdout }},gpt{{ rpool_partnum.stdout }}"
+        grub_root: "{{ 'hd1' if boot_mode == 'uefi' else 'hd0' }},gpt{{ rpool_partnum.stdout }}"
 
     - name: Write grub.cfg
       ansible.builtin.copy:
