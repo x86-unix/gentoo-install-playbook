@@ -7,6 +7,24 @@
   gather_facts: false
 
   tasks:
+    # google-chrome/vscode は gtk+[X] を必須で要求する。
+    # waybar の依存で cairomm/gtkmm が先にビルドされるため、
+    # ここで +X を設定しておかないと extra-gui-tools 実行時に
+    # スロットコンフリクトが発生する。
+    - name: Enable X USE flags for gtk dependencies (required by chrome/vscode)
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/gui-tools
+        mode: "0644"
+        content: |
+          x11-libs/cairo X
+          x11-libs/gtk+ X
+          media-libs/libepoxy X
+          media-libs/libglvnd X
+          dev-cpp/cairomm X
+          dev-cpp/gtkmm X
+          app-text/xmlto text
+          app-crypt/gcr gtk
+
     - name: Enable wayland USE flags
       ansible.builtin.copy:
         dest: /etc/portage/package.use/wayland
