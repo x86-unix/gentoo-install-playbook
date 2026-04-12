@@ -16,12 +16,12 @@ site-extra.yml             # 拡張セットアップ（reboot 後に実行）
 
 base/
   base-00-preflight.yml    # SSH 疎通・ZFS コマンド確認
-  base-01-disk-setup.yml   # パーティション作成・ZFS pool/dataset 作成
+  base-01-disk-setup.yml   # パーティション作成・ZFS pool/dataset 作成・2台目ディスク
   base-02-stage3.yml       # stage3 ダウンロード・展開・chroot 準備
-  base-03-portage.yml      # Portage 設定・make.conf 生成・ccache
-  base-04-system.yml       # timezone/locale/hostname/network/fstab
+  base-03-portage.yml      # Portage 設定・make.conf 生成・ccache（20G）
+  base-04-system.yml       # timezone/locale/hostname/network/fstab/WiFi(iwd)
   base-05-kernel.yml       # カーネルビルド・ZFS モジュール・dracut initramfs
-  base-06-bootloader.yml   # GRUB インストール・grub.cfg 生成
+  base-06-bootloader.yml   # GRUB インストール・grub.cfg 生成（BIOS/UEFI 自動）
   base-07-finalize.yml     # root パスワード・SSH・unmount・reboot
 
 extra/
@@ -31,8 +31,8 @@ extra/
   extra-account.yml        # sudo 設定・ユーザー作成
   extra-wayland.yml        # Wayland デスクトップ（labwc）
   extra-sound.yml          # サウンド（pipewire + wireplumber）
-  extra-ime.yml            # IME（fcitx5 + SKK）
-  extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode）
+  extra-ime.yml            # IME（fcitx5 + SKK、ソースビルド）
+  extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode、GURU overlay）
 
 group_vars/target.yml      # 全設定値
 inventory.ini              # ターゲットホスト定義
@@ -57,16 +57,15 @@ rpool/home             mountpoint=/home   canmount=on
 
 ## GRUB の起動パス
 
-GRUB は rpool のデータセットから直接カーネルを読み込む：
+GRUB は `search --label` で rpool を自動検出する（BIOS/UEFI 共通）：
 
 ```
-set root=(hd0,gpt3)
-linux /ROOT/gentoo@/boot/kernel-<version> root=rpool/ROOT/gentoo boot=zfs
+search --no-floppy --label --set=root rpool
+linux /ROOT/gentoo@/boot/kernel-<version> root=zfs:rpool/ROOT/gentoo
 initrd /ROOT/gentoo@/boot/initramfs-<version>.img
 ```
 
-- `/ROOT/gentoo@/` — GRUB の ZFS ドライバが `rpool/ROOT/gentoo` データセットのルートを参照する記法
-- `boot=zfs` — dracut に ZFS root であることを伝える
+- `search --label rpool` — BIOS/UEFI 両対応でディスク番号に依存しない
 - initramfs が ZFS モジュールをロードし、rpool を import してから root をマウントする
 
 ## 使い方
@@ -88,7 +87,9 @@ vi group_vars/target.yml
 
 ```yaml
 # Disk
-default_target_disk: sda
+default_target_disk: sda       # インストール先ディスク（例: sda, nvme0n1）
+second_disk: ""                 # 2台目物理ディスク名。設定すると ZFS pool を作成し /mnt/<disk> にマウント
+ccache_dir: ""                  # ccache ディレクトリ。空の場合は /var/cache/ccache を使用
 
 # System
 default_timezone: Asia/Tokyo
@@ -111,12 +112,18 @@ default_root_password: root
 # User
 default_user: gentoo
 default_user_password: gentoo
-sudo_nopasswd: false
+sudo_nopasswd: true
+
+# WiFi (optional) - WiFi NIC が検出された場合のみ使用
+wifi_ssid: ""
+wifi_password: ""
 ```
 
 | 変数 | 説明 |
 |------|------|
 | `default_target_disk` | インストール先ディスク（`sda`, `nvme0n1` 等） |
+| `second_disk` | 2台目ディスク名。設定すると ZFS pool を作成し `/mnt/<disk>` にマウント |
+| `ccache_dir` | ccache ディレクトリ。空の場合は `/var/cache/ccache` を使用 |
 | `default_timezone` | システムのタイムゾーン |
 | `default_hostname` | ホスト名 |
 | `gentoo_mirror` | stage3 / distfiles のミラー URL |
@@ -128,6 +135,8 @@ sudo_nopasswd: false
 | `default_user` | 作成するユーザー名 |
 | `default_user_password` | ユーザーパスワード（平文） |
 | `sudo_nopasswd` | `true` で NOPASSWD sudo を有効化 |
+| `wifi_ssid` | WiFi SSID（WiFi NIC 検出時のみ使用、vault 推奨） |
+| `wifi_password` | WiFi パスワード（WiFi NIC 検出時のみ使用、vault 推奨） |
 
 ### 2. ベースインストール
 
@@ -135,6 +144,12 @@ sudo_nopasswd: false
 
 ```bash
 ansible-playbook -i inventory.ini site-base.yml -e ansible_ssh_pass=rescue
+```
+
+vault を使用している場合：
+
+```bash
+ansible-playbook -i inventory.ini site-base.yml -e ansible_ssh_pass=rescue --vault-password-file <(echo <vault_password>)
 ```
 
 実行中に確認プロンプトが出る：
@@ -160,14 +175,32 @@ ansible-playbook -i inventory.ini site-extra.yml --ask-pass
 4. ユーザーアカウント・sudo 設定
 5. Wayland デスクトップ（labwc + waybar + foot + wofi）
 6. サウンド（pipewire + wireplumber）
-7. IME（fcitx5 + SKK）
-8. GUI ツール（Google Chrome, VSCode）
+7. IME（fcitx5 + SKK、ソースビルド）
+8. GUI ツール（Google Chrome, VSCode、GURU overlay 経由）
 
 ### 4. 個別実行
 
 ```bash
 ansible-playbook -i inventory.ini base/base-05-kernel.yml -e ansible_ssh_pass=rescue
 ansible-playbook -i inventory.ini extra/extra-wayland.yml --ask-pass
+```
+
+## ccache
+
+- `FEATURES="ccache"` を make.conf に設定済み
+- デフォルトは `/var/cache/ccache`（max 20G）
+- `second_disk` を設定した場合は `ccache_dir: "/mnt/<disk>/ccache"` を指定すると2台目ディスク上に配置できる
+
+## WiFi
+
+- WiFi NIC（`wlan*`, `wlp*`）が検出された場合のみ `iwd` をインストール・設定
+- `wifi_ssid` と `wifi_password` を設定すると起動時に自動接続
+- 有線環境では WiFi NIC がなければ何もしない
+- パスワードは `ansible-vault` で暗号化推奨：
+
+```bash
+ansible-vault encrypt_string 'your_ssid' --name 'wifi_ssid'
+ansible-vault encrypt_string 'your_password' --name 'wifi_password'
 ```
 
 ## 冪等性
@@ -188,3 +221,5 @@ ansible-playbook -i inventory.ini extra/extra-wayland.yml --ask-pass
 - reboot を拒否した場合、ライブ環境の bind mount はそのまま維持される（再実行可能）
 - ライブ環境のカーネル config（`/proc/config.gz`）をベースに `localmodconfig` でカーネルを最小化している。異なるライブ環境で再実行すると config が変わりカーネルが再ビルドされる
 - `group_vars/target.yml` に root パスワードとユーザーパスワードが平文で保存される。必要に応じて `ansible-vault` で暗号化すること
+- `extra-ime.yml` は fcitx5 + SKK をソースからビルドするため時間がかかる
+- `extra-gui-tools.yml` は GURU overlay を使用する。初回は overlay の sync が走る
