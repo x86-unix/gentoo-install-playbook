@@ -30,3 +30,6 @@
 
 - name: Import remote desktop
   ansible.builtin.import_playbook: extra/extra-remote-desktop.yml
+
+- name: Import waydroid
+  ansible.builtin.import_playbook: extra/extra-waydroid.yml
