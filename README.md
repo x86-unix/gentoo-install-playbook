@@ -34,7 +34,8 @@ extra/
   extra-ime.yml            # IME（fcitx5 + SKK、ソースビルド）
   extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode、GURU overlay）
 
-group_vars/target.yml      # 全設定値
+group_vars/target.yml      # 共通設定値
+host_vars/<IP>.yml         # ホスト固有設定（disk, hostname 等）
 inventory.ini              # ターゲットホスト定義
 ```
 
@@ -78,8 +79,24 @@ vi inventory.ini
 
 ```ini
 [target]
+192.168.77.11 ansible_user=root
 192.168.77.26 ansible_user=root
 ```
+
+ホスト固有の設定（ディスク名・ホスト名）は `host_vars/<IP>.yml` に記述する：
+
+```bash
+vi host_vars/192.168.77.26.yml
+```
+
+```yaml
+default_hostname: zfs-gentoo-desktop
+default_target_disk: sda
+second_disk: "sdb"
+ccache_dir: "/mnt/sdb/ccache"
+```
+
+共通設定は `group_vars/target.yml` に記述する：
 
 ```bash
 vi group_vars/target.yml
@@ -229,5 +246,6 @@ ansible-vault encrypt_string 'your_password' --name 'wifi_password'
 - reboot を拒否した場合、ライブ環境の bind mount はそのまま維持される（再実行可能）
 - ライブ環境のカーネル config（`/proc/config.gz`）をベースに `localmodconfig` でカーネルを最小化している。異なるライブ環境で再実行すると config が変わりカーネルが再ビルドされる
 - `group_vars/target.yml` に root パスワードとユーザーパスワードが平文で保存される。必要に応じて `ansible-vault` で暗号化すること
+- `extra-wayland.yml` は llvm/clang のビルドを避けるため `llvm-bin`/`clang-bin` を優先する（`~amd64` を `accept_keywords` に追加）
 - `extra-ime.yml` は fcitx5 + SKK をソースからビルドするため時間がかかる
 - `extra-gui-tools.yml` は GURU overlay を使用する。初回は overlay の sync が走る

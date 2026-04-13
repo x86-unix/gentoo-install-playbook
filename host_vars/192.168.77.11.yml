@@ -1,0 +1,5 @@
+---
+default_hostname: zfs-gentoo-note
+default_target_disk: nvme0n1
+second_disk: ""
+ccache_dir: ""
