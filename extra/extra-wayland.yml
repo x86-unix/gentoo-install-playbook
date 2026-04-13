@@ -129,7 +129,7 @@
         mode: "0644"
         content: |
           [main]
-          font=JetBrains Mono:size=12,Noto Sans Mono CJK JP:size=12
+          font=JetBrains Mono:size=12,Noto Sans Mono CJK JP:size=12,JetBrainsMono Nerd Font:size=12
 
           [tweak]
           font-monospace-warn=no
