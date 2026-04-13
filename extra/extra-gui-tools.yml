@@ -30,9 +30,24 @@
           app-editors/vscode Microsoft-vscode
 
     - name: Install google-chrome and vscode
-      ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode
+      ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode x11-themes/papirus-icon-theme
       register: gui_install
       changed_when: "'Installing' in gui_install.stdout"
+
+    - name: Set papirus as default icon theme
+      ansible.builtin.file:
+        path: /usr/share/icons/default
+        state: directory
+        mode: "0755"
+
+    - name: Write default icon theme index
+      ansible.builtin.copy:
+        dest: /usr/share/icons/default/index.theme
+        mode: "0644"
+        content: |
+          [Icon Theme]
+          Inherits=Papirus
+
 
     - name: Override Chrome desktop for Wayland
       ansible.builtin.copy:
@@ -59,3 +74,21 @@
           Type=Application
           Icon=vscode
           Categories=Development;
+
+    - name: Hide CLI/unnecessary apps from launcher
+      ansible.builtin.copy:
+        dest: /usr/share/applications/{{ item }}
+        mode: "0644"
+        content: |
+          [Desktop Entry]
+          NoDisplay=true
+          Type=Application
+          Name={{ item }}
+      loop:
+        - vim.desktop
+        - foot-server.desktop
+        - footclient.desktop
+        - gcr-prompter.desktop
+        - gcr-viewer.desktop
+        - code-url-handler.desktop
+        - fcitx5-wayland-launcher.desktop

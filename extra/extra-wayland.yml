@@ -142,12 +142,16 @@
           {
             "layer": "top",
             "font": "Noto Sans CJK JP 12",
-            "modules-left": ["custom/launcher", "clock"],
+            "modules-left": ["wlr/workspaces", "custom/launcher", "clock"],
             "modules-center": [],
             "modules-right": ["pulseaudio", "memory", "cpu", "tray"],
+            "wlr/workspaces": {
+              "format": "{name}",
+              "on-click": "activate"
+            },
             "custom/launcher": {
               "format": "🚀",
-              "on-click": "wofi --show drun",
+              "on-click": "wofi --show drun --allow-images",
               "tooltip": false
             },
             "clock": { "format": "{:%Y-%m-%d %H:%M}" },
@@ -161,6 +165,37 @@
               "on-scroll-down": "pactl set-sink-volume @DEFAULT_SINK@ -5%"
             },
             "tray": { "spacing": 8 }
+          }
+
+    - name: Configure waybar style
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/waybar/style.css
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          * {
+            font-family: "Noto Sans CJK JP";
+            font-size: 13px;
+          }
+          window#waybar {
+            background: #1e1e2e;
+            color: #cdd6f4;
+          }
+          #workspaces button {
+            padding: 0 8px;
+            color: #6c7086;
+            border-radius: 4px;
+          }
+          #workspaces button.active {
+            color: #cdd6f4;
+            background: #45475a;
+            font-weight: bold;
+          }
+          #clock, #cpu, #memory, #pulseaudio, #tray, #custom-launcher {
+            padding: 0 10px;
+          }
+          #custom-launcher {
+            font-size: 16px;
           }
 
     - name: Configure labwc autostart
@@ -178,3 +213,34 @@
         mode: "0644"
         content: |
           XKB_DEFAULT_OPTIONS=ctrl:nocaps
+
+    - name: Configure labwc rc.xml (workspaces + keybinds)
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/labwc/rc.xml
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          <?xml version="1.0"?>
+          <labwc_config>
+            <desktops>
+              <names>
+                <name>1</name>
+                <name>2</name>
+                <name>3</name>
+                <name>4</name>
+              </names>
+            </desktops>
+            <keyboard>
+              <keybind key="W-1"><action name="GoToDesktop" to="1"/></keybind>
+              <keybind key="W-2"><action name="GoToDesktop" to="2"/></keybind>
+              <keybind key="W-3"><action name="GoToDesktop" to="3"/></keybind>
+              <keybind key="W-4"><action name="GoToDesktop" to="4"/></keybind>
+              <keybind key="W-S-1"><action name="SendToDesktop" to="1"/></keybind>
+              <keybind key="W-S-2"><action name="SendToDesktop" to="2"/></keybind>
+              <keybind key="W-S-3"><action name="SendToDesktop" to="3"/></keybind>
+              <keybind key="W-S-4"><action name="SendToDesktop" to="4"/></keybind>
+              <keybind key="W-space"><action name="Execute"><command>wofi --show drun --allow-images</command></action></keybind>
+              <keybind key="W-Return"><action name="Execute"><command>foot</command></action></keybind>
+              <keybind key="A-F4"><action name="Close"/></keybind>
+            </keyboard>
+          </labwc_config>
