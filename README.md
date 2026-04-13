@@ -246,6 +246,5 @@ ansible-vault encrypt_string 'your_password' --name 'wifi_password'
 - reboot を拒否した場合、ライブ環境の bind mount はそのまま維持される（再実行可能）
 - ライブ環境のカーネル config（`/proc/config.gz`）をベースに `localmodconfig` でカーネルを最小化している。異なるライブ環境で再実行すると config が変わりカーネルが再ビルドされる
 - `group_vars/target.yml` に root パスワードとユーザーパスワードが平文で保存される。必要に応じて `ansible-vault` で暗号化すること
-- `extra-wayland.yml` は llvm/clang のビルドを避けるため `llvm-bin`/`clang-bin` を優先する（`~amd64` を `accept_keywords` に追加）
 - `extra-ime.yml` は fcitx5 + SKK をソースからビルドするため時間がかかる
 - `extra-gui-tools.yml` は GURU overlay を使用する。初回は overlay の sync が走る
