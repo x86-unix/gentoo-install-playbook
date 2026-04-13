@@ -54,6 +54,7 @@
         gui-apps/foot
         gui-apps/wofi
         gui-apps/wl-clipboard
+        gui-apps/swaybg
         gui-libs/greetd
         gui-apps/tuigreet
         x11-misc/xdg-user-dirs
@@ -131,6 +132,9 @@
           [main]
           font=JetBrains Mono:size=12,Noto Sans Mono CJK JP:size=12,JetBrainsMono Nerd Font:size=12
 
+          [colors]
+          alpha=0.8
+
           [tweak]
           font-monospace-warn=no
 
@@ -160,7 +164,7 @@
             },
             "custom/launcher": {
               "format": "🚀",
-              "on-click": "wofi --show drun --allow-images",
+              "on-click": "wofi --show drun --allow-images --width=25%",
               "tooltip": false
             },
             "clock": { "format": "{:%Y-%m-%d %H:%M}" },
@@ -230,12 +234,20 @@
           </menu>
           </openbox_menu>
 
+    - name: Deploy wallpaper
+      ansible.builtin.copy:
+        src: ../files/frieren-blue-flower-anime-wallpaper-4k.jpeg
+        dest: /home/{{ default_user }}/.config/labwc/wallpaper.jpeg
+        owner: "{{ default_user }}"
+        mode: "0644"
+
     - name: Configure labwc autostart
       ansible.builtin.copy:
         dest: /home/{{ default_user }}/.config/labwc/autostart
         owner: "{{ default_user }}"
         mode: "0644"
         content: |
+          swaybg -i /home/{{ default_user }}/.config/labwc/wallpaper.jpeg -m fill &
           waybar &
           fcitx5 -d &
           wayvnc &
@@ -277,7 +289,7 @@
               <keybind key="W-S-2"><action name="SendToDesktop" to="2"/></keybind>
               <keybind key="W-S-3"><action name="SendToDesktop" to="3"/></keybind>
               <keybind key="W-S-4"><action name="SendToDesktop" to="4"/></keybind>
-              <keybind key="W-space"><action name="Execute"><command>wofi --show drun --allow-images</command></action></keybind>
+              <keybind key="W-space"><action name="Execute"><command>wofi --show drun --allow-images --width=25%</command></action></keybind>
               <keybind key="W-Return"><action name="Execute"><command>foot</command></action></keybind>
               <keybind key="A-F4"><action name="Close"/></keybind>
             </keyboard>
