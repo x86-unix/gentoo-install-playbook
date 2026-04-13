@@ -59,6 +59,7 @@
         x11-misc/xdg-user-dirs
         media-fonts/noto-cjk
         media-fonts/noto-emoji
+        media-fonts/jetbrains-mono
       register: labwc_install
       changed_when: "'Installing' in labwc_install.stdout"
 
@@ -123,8 +124,11 @@
         owner: "{{ default_user }}"
         mode: "0644"
         content: |
-          [font]
-          font=Noto Sans Mono CJK JP:size=12
+          [main]
+          font=JetBrains Mono:size=12,Noto Sans Mono CJK JP:size=12
+
+          [tweak]
+          font-monospace-warn=no
 
     - name: Ensure waybar config directory
       ansible.builtin.file:
