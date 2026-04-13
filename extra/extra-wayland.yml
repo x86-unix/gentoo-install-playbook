@@ -58,6 +58,7 @@
         gui-apps/tuigreet
         x11-misc/xdg-user-dirs
         media-fonts/noto-cjk
+        media-fonts/noto-emoji
       register: labwc_install
       changed_when: "'Installing' in labwc_install.stdout"
 
@@ -101,3 +102,63 @@
         name: getty@tty1
         enabled: false
         masked: true
+
+    - name: Ensure labwc config directory
+      ansible.builtin.file:
+        path: /home/{{ default_user }}/.config/labwc
+        state: directory
+        owner: "{{ default_user }}"
+        mode: "0755"
+
+    - name: Ensure waybar config directory
+      ansible.builtin.file:
+        path: /home/{{ default_user }}/.config/waybar
+        state: directory
+        owner: "{{ default_user }}"
+        mode: "0755"
+
+    - name: Configure waybar (network module disabled to avoid segfault)
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/waybar/config
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          {
+            "layer": "top",
+            "font": "Noto Sans CJK JP 12",
+            "modules-left": ["custom/launcher", "clock"],
+            "modules-center": [],
+            "modules-right": ["pulseaudio", "memory", "cpu", "tray"],
+            "custom/launcher": {
+              "format": "🚀",
+              "on-click": "wofi --show drun",
+              "tooltip": false
+            },
+            "clock": { "format": "{:%Y-%m-%d %H:%M}" },
+            "cpu": { "format": "CPU {usage}%" },
+            "memory": { "format": "MEM {used:0.1f}G" },
+            "pulseaudio": {
+              "format": "🔊 {volume}%",
+              "format-muted": "🔇",
+              "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
+              "on-scroll-up": "pactl set-sink-volume @DEFAULT_SINK@ +5%",
+              "on-scroll-down": "pactl set-sink-volume @DEFAULT_SINK@ -5%"
+            },
+            "tray": { "spacing": 8 }
+          }
+
+    - name: Configure labwc autostart
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/labwc/autostart
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          waybar &
+
+    - name: Configure labwc environment (CapsLock to Ctrl)
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/labwc/environment
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          XKB_DEFAULT_OPTIONS=ctrl:nocaps
