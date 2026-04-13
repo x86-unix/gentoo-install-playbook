@@ -78,7 +78,7 @@ vi inventory.ini
 
 ```ini
 [target]
-192.168.77.26 ansible_user=root ansible_python_interpreter=/usr/bin/python3.13
+192.168.77.26 ansible_user=root
 ```
 
 ```bash
@@ -189,13 +189,21 @@ ansible-playbook -i inventory.ini extra/extra-wayland.yml --ask-pass
 
 - `FEATURES="ccache"` を make.conf に設定済み
 - デフォルトは `/var/cache/ccache`（max 20G）
-- `second_disk` を設定した場合は `ccache_dir: "/mnt/<disk>/ccache"` を指定すると2台目ディスク上に配置できる
+- `second_disk` を設定した場合は `ccache_dir` を合わせて指定すると2台目ディスク上に配置できる
+
+2台目ディスクを使う場合の設定例（`sdb` の場合）：
+
+```yaml
+second_disk: "sdb"
+ccache_dir: "/mnt/sdb/ccache"
+```
 
 ## WiFi
 
 - WiFi NIC（`wlan*`, `wlp*`）が検出された場合のみ `iwd` をインストール・設定
 - `wifi_ssid` と `wifi_password` を設定すると起動時に自動接続
-- 有線環境では WiFi NIC がなければ何もしない
+- 有線と WiFi NIC が共存していても WiFi NIC が存在すれば kernel の crypto オプション（`CONFIG_CRYPTO_*`）を有効化してビルドする
+- 有線のみの環境では WiFi NIC がなければ何もしない
 - パスワードは `ansible-vault` で暗号化推奨：
 
 ```bash
