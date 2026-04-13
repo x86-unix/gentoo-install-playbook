@@ -110,6 +110,22 @@
         owner: "{{ default_user }}"
         mode: "0755"
 
+    - name: Ensure foot config directory
+      ansible.builtin.file:
+        path: /home/{{ default_user }}/.config/foot
+        state: directory
+        owner: "{{ default_user }}"
+        mode: "0755"
+
+    - name: Configure foot font
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/foot/foot.ini
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          [font]
+          font=Noto Sans Mono CJK JP:size=12
+
     - name: Ensure waybar config directory
       ansible.builtin.file:
         path: /home/{{ default_user }}/.config/waybar
