@@ -7,37 +7,45 @@
   gather_facts: false
 
   tasks:
+    - name: Set pipewire USE flags
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/pipewire
+        mode: "0644"
+        content: |
+          media-video/pipewire sound-server alsa-backend dbus
+          media-video/wireplumber dbus
+
     - name: Install pipewire and wireplumber
       ansible.builtin.command: >
-        emerge --noreplace
+        emerge --changed-use
         media-video/pipewire
         media-video/wireplumber
       register: pipewire_install
       changed_when: "'Installing' in pipewire_install.stdout"
 
-    - name: Ensure systemd user default.target.wants directory exists
+    - name: Enable linger for user (allows user services to start at boot)
+      ansible.builtin.command: loginctl enable-linger {{ default_user }}
+      changed_when: false
+
+    - name: Ensure systemd user service directories exist
       ansible.builtin.file:
-        path: /etc/systemd/user/default.target.wants
+        path: /etc/systemd/user/{{ item }}
         state: directory
         mode: "0755"
+      loop:
+        - default.target.wants
+        - sockets.target.wants
+        - pipewire.service.wants
 
-    - name: Enable pipewire user service
-      ansible.builtin.copy:
-        dest: /etc/systemd/user/default.target.wants/pipewire.service
-        src: /usr/lib/systemd/user/pipewire.service
-        remote_src: true
-        mode: "0644"
-
-    - name: Enable pipewire-pulse user service
-      ansible.builtin.copy:
-        dest: /etc/systemd/user/default.target.wants/pipewire-pulse.service
-        src: /usr/lib/systemd/user/pipewire-pulse.service
-        remote_src: true
-        mode: "0644"
-
-    - name: Enable wireplumber user service
-      ansible.builtin.copy:
-        dest: /etc/systemd/user/default.target.wants/wireplumber.service
-        src: /usr/lib/systemd/user/wireplumber.service
-        remote_src: true
-        mode: "0644"
+    - name: Enable pipewire wireplumber user services globally
+      ansible.builtin.file:
+        src: /usr/lib/systemd/user/{{ item.src }}
+        dest: /etc/systemd/user/{{ item.dest }}
+        state: link
+        force: true
+      loop:
+        - { src: pipewire.service,       dest: default.target.wants/pipewire.service }
+        - { src: pipewire.socket,        dest: sockets.target.wants/pipewire.socket }
+        - { src: pipewire-pulse.service, dest: default.target.wants/pipewire-pulse.service }
+        - { src: pipewire-pulse.socket,  dest: sockets.target.wants/pipewire-pulse.socket }
+        - { src: wireplumber.service,    dest: pipewire.service.wants/wireplumber.service }
