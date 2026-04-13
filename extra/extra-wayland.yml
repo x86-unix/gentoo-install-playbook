@@ -142,11 +142,12 @@
           {
             "layer": "top",
             "font": "Noto Sans CJK JP 12",
-            "modules-left": ["wlr/workspaces", "custom/launcher", "clock"],
+            "modules-left": ["ext/workspaces", "custom/launcher", "clock"],
             "modules-center": [],
             "modules-right": ["pulseaudio", "memory", "cpu", "tray"],
-            "wlr/workspaces": {
+            "ext/workspaces": {
               "format": "{name}",
+              "sort-by-number": true,
               "on-click": "activate"
             },
             "custom/launcher": {
@@ -181,12 +182,14 @@
             background: #1e1e2e;
             color: #cdd6f4;
           }
-          #workspaces button {
+          #workspaces button,
+          #ext-workspaces button {
             padding: 0 8px;
             color: #6c7086;
             border-radius: 4px;
           }
-          #workspaces button.active {
+          #workspaces button.active,
+          #ext-workspaces button.active {
             color: #cdd6f4;
             background: #45475a;
             font-weight: bold;
