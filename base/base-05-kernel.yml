@@ -99,6 +99,13 @@
             scripts/config --module CONFIG_CRYPTO_LZ4HC
             scripts/config --enable CONFIG_CRYPTO_ZSTD
 
+        - name: Enable Android binder options (required for Waydroid)
+          ansible.builtin.shell: |
+            cd {{ mountpoint }}{{ ksrc }}
+            scripts/config --enable CONFIG_ANDROID_BINDER_IPC
+            scripts/config --enable CONFIG_ANDROID_BINDERFS
+            scripts/config --set-str CONFIG_ANDROID_BINDER_DEVICES "binder,hwbinder,vndbinder"
+
         - name: Enable Bluetooth kernel options
           ansible.builtin.shell: |
             cd {{ mountpoint }}{{ ksrc }}

@@ -1,0 +1,80 @@
+---
+# Install Waydroid (Android container on Wayland)
+# Requires: GURU overlay (extra-gui-tools.yml), Wayland (extra-wayland.yml)
+# Usage: ansible-playbook -i inventory.ini extra/extra-waydroid.yml --ask-pass
+
+- name: "Extra: Waydroid"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Accept ~amd64 keyword for waydroid and deps
+      ansible.builtin.copy:
+        dest: /etc/portage/package.accept_keywords/waydroid
+        mode: "0644"
+        content: |
+          app-containers/waydroid ~amd64
+          app-containers/lxc ~amd64
+          dev-libs/gbinder ~amd64
+          dev-python/gbinder ~amd64
+
+    - name: Enable lxc USE flags
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/waydroid
+        mode: "0644"
+        content: |
+          app-containers/lxc -seccomp
+
+    - name: Ensure GURU overlay is enabled
+      ansible.builtin.command: eselect repository enable guru
+      args:
+        creates: /var/db/repos/guru
+
+    - name: Sync GURU overlay
+      ansible.builtin.command: emaint sync -r guru
+      changed_when: false
+
+    - name: Install waydroid
+      ansible.builtin.command: emerge --noreplace app-containers/waydroid
+      register: waydroid_install
+      changed_when: "'Installing' in waydroid_install.stdout"
+
+    - name: Enable waydroid service
+      ansible.builtin.systemd:
+        name: waydroid-container
+        enabled: true
+        state: started
+
+    - name: Add user to waydroid group
+      ansible.builtin.user:
+        name: "{{ default_user }}"
+        groups: waydroid
+        append: true
+
+    - name: Check kernel binder support
+      ansible.builtin.command: grep -r CONFIG_ANDROID_BINDER /proc/config.gz
+      register: binder_check
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Warn if binder not enabled in kernel
+      ansible.builtin.debug:
+        msg: >
+          WARNING: CONFIG_ANDROID_BINDER_IPC may not be enabled in the running kernel.
+          Rebuild kernel with CONFIG_ANDROID_BINDER_IPC=y and CONFIG_ANDROID_BINDERFS=y,
+          then run: waydroid init
+      when: binder_check.rc != 0 or 'CONFIG_ANDROID_BINDER_IPC=y' not in binder_check.stdout
+
+    - name: Create waydroid desktop entry
+      ansible.builtin.copy:
+        dest: /usr/share/applications/waydroid.desktop
+        mode: "0644"
+        content: |
+          [Desktop Entry]
+          Name=Waydroid
+          Exec=waydroid show-full-ui
+          Terminal=false
+          Type=Application
+          Icon=waydroid
+          Categories=System;Emulator;

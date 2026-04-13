@@ -118,7 +118,7 @@
         content: |
           [Desktop Entry]
           Name=Yazi
-          Exec=foot --window-size-chars=240x60 yazi
+          Exec=foot --window-size-chars=144x30 yazi
           Terminal=false
           Type=Application
           Icon=system-file-manager
