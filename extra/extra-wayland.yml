@@ -220,11 +220,8 @@
             <item label="ターミナル">
               <action name="Execute"><command>foot</command></action>
             </item>
-            <item label="アプリ起動">
-              <action name="Execute"><command>wofi --show drun --allow-images</command></action>
-            </item>
             <item label="Chrome">
-              <action name="Execute"><command>google-chrome-stable --ozone-platform=wayland</command></action>
+              <action name="Execute"><command>google-chrome-stable --ozone-platform=wayland --password-store=basic</command></action>
             </item>
             <separator />
             <item label="終了">

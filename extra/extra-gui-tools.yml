@@ -92,7 +92,7 @@
         content: |
           [Desktop Entry]
           Name=Google Chrome
-          Exec=/usr/bin/google-chrome-stable --ozone-platform=wayland %U
+          Exec=/usr/bin/google-chrome-stable --ozone-platform=wayland --password-store=basic %U
           Terminal=false
           Type=Application
           Icon=google-chrome
@@ -110,6 +110,19 @@
           Type=Application
           Icon=vscode
           Categories=Development;
+
+    - name: Create yazi desktop entry
+      ansible.builtin.copy:
+        dest: /usr/share/applications/yazi.desktop
+        mode: "0644"
+        content: |
+          [Desktop Entry]
+          Name=Yazi
+          Exec=foot --window-size-chars=240x60 yazi
+          Terminal=false
+          Type=Application
+          Icon=system-file-manager
+          Categories=System;FileManager;
 
     - name: Hide CLI/unnecessary apps from launcher
       ansible.builtin.copy:
