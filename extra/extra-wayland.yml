@@ -92,6 +92,10 @@
           command = "tuigreet --cmd labwc --greeting 'Welcome' --remember --time --time-format '%Y-%m-%d %H:%M'"
           user = greetd
 
+          [initial_session]
+          command = "labwc"
+          user = "{{ default_user }}"
+
     - name: Enable greetd service
       ansible.builtin.systemd:
         name: greetd
@@ -205,6 +209,30 @@
             font-size: 16px;
           }
 
+    - name: Configure labwc menu.xml
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/labwc/menu.xml
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          <openbox_menu>
+          <menu id="root-menu">
+            <item label="ターミナル">
+              <action name="Execute"><command>foot</command></action>
+            </item>
+            <item label="アプリ起動">
+              <action name="Execute"><command>wofi --show drun --allow-images</command></action>
+            </item>
+            <item label="Chrome">
+              <action name="Execute"><command>google-chrome-stable --ozone-platform=wayland</command></action>
+            </item>
+            <separator />
+            <item label="終了">
+              <action name="Exit" />
+            </item>
+          </menu>
+          </openbox_menu>
+
     - name: Configure labwc autostart
       ansible.builtin.copy:
         dest: /home/{{ default_user }}/.config/labwc/autostart
@@ -212,6 +240,8 @@
         mode: "0644"
         content: |
           waybar &
+          fcitx5 -d &
+          wayvnc &
 
     - name: Configure labwc environment (CapsLock to Ctrl)
       ansible.builtin.copy:
@@ -220,6 +250,10 @@
         mode: "0644"
         content: |
           XKB_DEFAULT_OPTIONS=ctrl:nocaps
+          GTK_IM_MODULE=fcitx
+          QT_IM_MODULE=fcitx
+          XMODIFIERS=@im=fcitx
+          QT_QPA_PLATFORM=wayland
 
     - name: Configure labwc rc.xml (workspaces + keybinds)
       ansible.builtin.copy:

@@ -27,3 +27,6 @@
 
 - name: Import GUI tools
   ansible.builtin.import_playbook: extra/extra-gui-tools.yml
+
+- name: Import remote desktop
+  ansible.builtin.import_playbook: extra/extra-remote-desktop.yml

@@ -1,0 +1,67 @@
+---
+# wayvnc (Wayland VNC server) + novnc (WebSocket bridge)
+# Access: http://<host>:6080/vnc.html
+# Usage: ansible-playbook -i inventory.ini extra/extra-remote-desktop.yml --ask-pass
+
+- name: "Extra: Remote Desktop (wayvnc + novnc)"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Accept ~amd64 keyword for wayvnc
+      ansible.builtin.copy:
+        dest: /etc/portage/package.accept_keywords/wayvnc
+        mode: "0644"
+        content: |
+          gui-apps/wayvnc ~amd64
+          gui-libs/neatvnc ~amd64
+
+    - name: Install wayvnc, novnc and websockify
+      ansible.builtin.command: >
+        emerge --noreplace
+        gui-apps/wayvnc
+        www-apps/novnc
+        dev-python/websockify
+      register: result
+      changed_when: "'Installing' in result.stdout"
+
+    - name: Ensure wayvnc config directory
+      ansible.builtin.file:
+        path: /home/{{ default_user }}/.config/wayvnc
+        state: directory
+        owner: "{{ default_user }}"
+        mode: "0700"
+
+    - name: Configure wayvnc (no auth)
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/wayvnc/config
+        owner: "{{ default_user }}"
+        group: "{{ default_user }}"
+        mode: "0600"
+        content: |
+          address=127.0.0.1
+          enable_auth=false
+
+    - name: Create novnc systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/novnc.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=noVNC WebSocket bridge
+          After=network.target
+
+          [Service]
+          ExecStart=/usr/bin/websockify --web /usr/share/novnc 6080 127.0.0.1:5900
+          Restart=on-failure
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start novnc service
+      ansible.builtin.systemd:
+        name: novnc
+        enabled: true
+        state: started
+        daemon_reload: true
+

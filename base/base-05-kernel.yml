@@ -99,6 +99,31 @@
             scripts/config --module CONFIG_CRYPTO_LZ4HC
             scripts/config --enable CONFIG_CRYPTO_ZSTD
 
+        - name: Enable Bluetooth kernel options
+          ansible.builtin.shell: |
+            cd {{ mountpoint }}{{ ksrc }}
+            scripts/config --enable CONFIG_BT
+            scripts/config --enable CONFIG_BT_BREDR
+            scripts/config --enable CONFIG_BT_LE
+            scripts/config --module CONFIG_BT_HCIBTUSB
+            scripts/config --module CONFIG_BT_INTEL
+            scripts/config --module CONFIG_BT_BCM
+            scripts/config --module CONFIG_BT_RTL
+            scripts/config --enable CONFIG_RFKILL
+
+        - name: Enable USB storage and Windows filesystem options
+          ansible.builtin.shell: |
+            cd {{ mountpoint }}{{ ksrc }}
+            scripts/config --module CONFIG_USB_STORAGE
+            scripts/config --module CONFIG_FAT_FS
+            scripts/config --module CONFIG_VFAT_FS
+            scripts/config --module CONFIG_NTFS3_FS
+            scripts/config --enable CONFIG_NTFS3_LZX_XPRESS
+            scripts/config --module CONFIG_EXFAT_FS
+            scripts/config --enable CONFIG_NLS_CODEPAGE_437
+            scripts/config --enable CONFIG_NLS_ISO8859_1
+            scripts/config --enable CONFIG_NLS_UTF8
+
         - name: Detect WiFi NIC on live system
           ansible.builtin.shell: "ip -o link show | awk -F': ' '/wlan|wlp/{print $2}' | head -1"
           register: live_wifi_nic
