@@ -37,12 +37,14 @@
           >=media-plugins/alsa-plugins-1.2.12 pulseaudio
           sys-auth/seatd server
 
-    - name: Accept ~amd64 keyword for labwc
+    - name: Accept ~amd64 keyword for labwc/greetd
       ansible.builtin.copy:
         dest: /etc/portage/package.accept_keywords/wayland
         mode: "0644"
         content: |
           gui-wm/labwc ~amd64
+          gui-libs/greetd ~amd64
+          gui-apps/tuigreet ~amd64
 
     - name: Install labwc and essentials
       ansible.builtin.command: >
@@ -52,7 +54,10 @@
         gui-apps/foot
         gui-apps/wofi
         gui-apps/wl-clipboard
+        gui-libs/greetd
+        gui-apps/tuigreet
         x11-misc/xdg-user-dirs
+        media-fonts/noto-cjk
       register: labwc_install
       changed_when: "'Installing' in labwc_install.stdout"
 
@@ -70,5 +75,29 @@
     - name: Add user to seat and video groups
       ansible.builtin.user:
         name: "{{ default_user }}"
-        groups: seat,video
+        groups: seat,video,greetd
         append: true
+
+    - name: Configure greetd
+      ansible.builtin.copy:
+        dest: /etc/greetd/config.toml
+        mode: "0644"
+        content: |
+          [terminal]
+          vt = 1
+
+          [default_session]
+          command = "tuigreet --cmd labwc --greeting 'Welcome' --remember --time"
+          user = greetd
+
+    - name: Enable greetd service
+      ansible.builtin.systemd:
+        name: greetd
+        enabled: true
+        state: started
+
+    - name: Disable getty@tty1 (greetd takes over tty1)
+      ansible.builtin.systemd:
+        name: getty@tty1
+        enabled: false
+        masked: true
