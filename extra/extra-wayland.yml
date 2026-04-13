@@ -44,14 +44,6 @@
         content: |
           gui-wm/labwc ~amd64
 
-    - name: Accept ~amd64 keyword for llvm/clang binary packages
-      ansible.builtin.copy:
-        dest: /etc/portage/package.accept_keywords/llvm-bin
-        mode: "0644"
-        content: |
-          sys-devel/llvm-bin ~amd64
-          sys-devel/clang-bin ~amd64
-
     - name: Install labwc and essentials
       ansible.builtin.command: >
         emerge --noreplace
