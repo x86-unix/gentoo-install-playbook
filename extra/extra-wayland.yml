@@ -247,7 +247,7 @@
         owner: "{{ default_user }}"
         mode: "0644"
         content: |
-          swaybg -i /home/{{ default_user }}/.config/labwc/wallpaper.jpeg -m fill &
+          swaybg -i $HOME/.config/labwc/wallpaper.jpeg -m fill &
           waybar &
           fcitx5 -d &
           wayvnc &
