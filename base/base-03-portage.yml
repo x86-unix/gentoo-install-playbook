@@ -111,6 +111,18 @@
       register: cpuflags_final
       changed_when: false
 
+    - name: Detect CPU architecture for LLVM_TARGETS
+      ansible.builtin.shell: |
+        case $(uname -m) in
+          x86_64|i?86) echo "X86" ;;
+          aarch64)     echo "AArch64" ;;
+          armv*)       echo "ARM" ;;
+          riscv*)      echo "RISCV" ;;
+          *)           echo "X86" ;;
+        esac
+      register: llvm_target
+      changed_when: false
+
     # --- Detect boot mode ---
     - name: Detect UEFI or BIOS
       ansible.builtin.stat:
@@ -151,6 +163,8 @@
 
           ACCEPT_LICENSE="*"
           GRUB_PLATFORMS="{{ grub_platforms }}"
+          LLVM_TARGETS="{{ llvm_target.stdout }}"
+          LLVM_TARGETS="X86"
 
           LC_MESSAGES=C.UTF-8
           L10N="{{ default_l10n }}"
