@@ -67,6 +67,16 @@
           then run: waydroid init
       when: binder_check.rc != 0 or 'CONFIG_ANDROID_BINDER_IPC=y' not in binder_check.stdout
 
+    - name: Create waydroid launcher script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/waydroid-launch
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          waydroid session start &
+          sleep 2
+          waydroid show-full-ui
+
     - name: Create waydroid desktop entry
       ansible.builtin.copy:
         dest: /usr/share/applications/waydroid.desktop
@@ -74,7 +84,7 @@
         content: |
           [Desktop Entry]
           Name=Waydroid
-          Exec=waydroid show-full-ui
+          Exec=waydroid-launch
           Terminal=false
           Type=Application
           Icon=waydroid
