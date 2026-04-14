@@ -1,5 +1,5 @@
 ---
-# Install fcitx5 + SKK (from gentoo main repo)
+# Install fcitx5 + SKK (fcitx-skk from gentoo-zh overlay)
 # Usage: ansible-playbook -i inventory.ini extra/extra-ime.yml --ask-pass
 
 - name: "Extra: IME (fcitx5 + SKK)"
@@ -7,6 +7,20 @@
   gather_facts: false
 
   tasks:
+    - name: Install eselect-repository if not present
+      ansible.builtin.command: emerge --noreplace app-eselect/eselect-repository dev-vcs/git
+      register: eselect_install
+      changed_when: "'Installing' in eselect_install.stdout"
+
+    - name: Enable gentoo-zh overlay
+      ansible.builtin.command: eselect repository enable gentoo-zh
+      args:
+        creates: /var/db/repos/gentoo-zh
+
+    - name: Sync gentoo-zh overlay
+      ansible.builtin.command: emaint sync -r gentoo-zh
+      changed_when: false
+
     - name: Enable USE flags for fcitx5
       ansible.builtin.copy:
         dest: /etc/portage/package.use/ime
@@ -16,7 +30,6 @@
           app-i18n/fcitx-qt qt6
           dev-qt/qtbase:6 opengl wayland -X
           dev-qt/qttools:6 opengl
-          app-dicts/myspell-en l10n_en-US
 
     - name: Accept ~amd64 keywords for fcitx5
       ansible.builtin.copy:
