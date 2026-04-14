@@ -54,6 +54,8 @@
         -e CONFIG_ANDROID_BINDER_IPC=y
         -e CONFIG_BRIDGE=
         -e CONFIG_VETH=
+        -e CONFIG_NF_TABLES_BRIDGE=y
+        -e CONFIG_NFT_NAT=
         /boot/config-{{ kernel_version }} /usr/src/linux/.config 2>/dev/null || true'
       register: existing_kconfig
       changed_when: false
@@ -66,7 +68,9 @@
              existing_zfs_module.stdout == '' or
              'CONFIG_ANDROID_BINDER_IPC=y' not in existing_kconfig.stdout or
              ('CONFIG_BRIDGE=y' not in existing_kconfig.stdout and 'CONFIG_BRIDGE=m' not in existing_kconfig.stdout) or
-             ('CONFIG_VETH=y' not in existing_kconfig.stdout and 'CONFIG_VETH=m' not in existing_kconfig.stdout) }}
+             ('CONFIG_VETH=y' not in existing_kconfig.stdout and 'CONFIG_VETH=m' not in existing_kconfig.stdout) or
+             'CONFIG_NF_TABLES_BRIDGE=y' not in existing_kconfig.stdout or
+             ('CONFIG_NFT_NAT=y' not in existing_kconfig.stdout and 'CONFIG_NFT_NAT=m' not in existing_kconfig.stdout) }}
 
     - name: Show rebuild decision
       ansible.builtin.debug:
@@ -124,6 +128,12 @@
             scripts/config --set-str CONFIG_ANDROID_BINDER_DEVICES "binder,hwbinder,vndbinder"
             scripts/config --module CONFIG_BRIDGE
             scripts/config --module CONFIG_VETH
+            scripts/config --enable CONFIG_NF_TABLES_BRIDGE
+            scripts/config --module CONFIG_NFT_NAT
+            scripts/config --module CONFIG_NFT_MASQ
+            scripts/config --module CONFIG_NF_NAT
+            scripts/config --module CONFIG_IP_NF_NAT
+            scripts/config --module CONFIG_IP_NF_IPTABLES
 
         - name: Enable Bluetooth kernel options
           ansible.builtin.shell: |
