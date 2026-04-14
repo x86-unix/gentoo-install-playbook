@@ -45,6 +45,12 @@
         enabled: true
         state: started
 
+    - name: Ensure ext4 module loads at boot (required for system.img mount)
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/waydroid.conf
+        mode: "0644"
+        content: "ext4\n"
+
     - name: Add user to waydroid group
       ansible.builtin.user:
         name: "{{ default_user }}"
