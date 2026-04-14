@@ -36,6 +36,7 @@
           >=dev-libs/libdbusmenu-16.04.0-r4 gtk3
           >=media-plugins/alsa-plugins-1.2.12 pulseaudio
           sys-auth/seatd server
+          >=sys-apps/systemd-259.4-r1 policykit
 
     - name: Accept ~amd64 keyword for labwc/greetd
       ansible.builtin.copy:
@@ -45,6 +46,7 @@
           gui-wm/labwc ~amd64
           gui-libs/greetd ~amd64
           gui-apps/tuigreet ~amd64
+          gui-apps/wlopm ~amd64
 
     - name: Install labwc and essentials
       ansible.builtin.command: >
@@ -55,6 +57,8 @@
         gui-apps/wofi
         gui-apps/wl-clipboard
         gui-apps/swaybg
+        gui-apps/swayidle
+        gui-apps/wlopm
         gui-libs/greetd
         gui-apps/tuigreet
         x11-misc/xdg-user-dirs
@@ -156,7 +160,7 @@
             "font": "Noto Sans CJK JP 12",
             "modules-left": ["ext/workspaces", "custom/launcher", "clock"],
             "modules-center": [],
-            "modules-right": ["pulseaudio", "memory", "cpu", "tray"],
+            "modules-right": ["bluetooth", "pulseaudio", "memory", "cpu", "tray"],
             "ext/workspaces": {
               "format": "{name}",
               "sort-by-number": true,
@@ -176,6 +180,15 @@
               "on-click": "pactl set-sink-mute @DEFAULT_SINK@ toggle",
               "on-scroll-up": "pactl set-sink-volume @DEFAULT_SINK@ +5%",
               "on-scroll-down": "pactl set-sink-volume @DEFAULT_SINK@ -5%"
+            },
+            "bluetooth": {
+              "format": "󰂯",
+              "format-connected": "󰂱 {device_alias}",
+              "format-disabled": "󰂲",
+              "on-click": "blueman-manager",
+              "tooltip-format": "{controller_alias} ({controller_address})",
+              "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
+              "tooltip-format-enumerate-connected": "{device_alias} ({device_address})"
             },
             "tray": { "spacing": 8 }
           }
@@ -206,7 +219,7 @@
             background: #45475a;
             font-weight: bold;
           }
-          #clock, #cpu, #memory, #pulseaudio, #tray, #custom-launcher {
+          #clock, #cpu, #memory, #pulseaudio, #bluetooth, #tray, #custom-launcher {
             padding: 0 10px;
           }
           #custom-launcher {
@@ -223,6 +236,9 @@
           <menu id="root-menu">
             <item label="ターミナル">
               <action name="Execute"><command>foot</command></action>
+            </item>
+            <item label="ファイルマネージャ (yazi)">
+              <action name="Execute"><command>foot --window-size-chars=144x30 yazi</command></action>
             </item>
             <item label="Chrome">
               <action name="Execute"><command>google-chrome-stable --ozone-platform=wayland --password-store=basic</command></action>
@@ -249,6 +265,8 @@
         content: |
           swaybg -i $HOME/.config/labwc/wallpaper.png -m fill &
           waybar &
+          swayidle -w timeout {{ display_idle_timeout | default(3600) }} 'wlopm --off "*"' resume 'wlopm --on "*"' &
+          blueman-applet &
           fcitx5 -d &
           wayvnc &
 

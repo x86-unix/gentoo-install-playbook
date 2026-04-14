@@ -29,8 +29,9 @@ extra/
   extra-services.yml       # システムサービス（cronie）
   extra-cli-tools.yml      # CLI ツール（vim, sudo, bash-completion 等）
   extra-account.yml        # sudo 設定・ユーザー作成
-  extra-wayland.yml        # Wayland デスクトップ（labwc）
   extra-sound.yml          # サウンド（pipewire + wireplumber）
+  extra-bluetooth.yml      # Bluetooth（bluez + blueman、ハード検出付き）
+  extra-wayland.yml        # Wayland デスクトップ（labwc）
   extra-ime.yml            # IME（fcitx5 + SKK、ソースビルド）
   extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode、GURU overlay）
 
@@ -190,10 +191,11 @@ ansible-playbook -i inventory.ini site-extra.yml --ask-pass
 2. システムサービス（cronie）
 3. CLI ツール（vim, sudo, bash-completion 等）
 4. ユーザーアカウント・sudo 設定
-5. Wayland デスクトップ（labwc + waybar + foot + wofi）
-6. サウンド（pipewire + wireplumber）
-7. IME（fcitx5 + SKK、ソースビルド）
-8. GUI ツール（Google Chrome, VSCode、GURU overlay 経由）
+5. サウンド（pipewire + wireplumber）
+6. Bluetooth（bluez + blueman、ハード未検出時はスキップ）
+7. Wayland デスクトップ（labwc + waybar + foot + wofi）
+8. IME（fcitx5 + SKK、ソースビルド）
+9. GUI ツール（Google Chrome, VSCode、GURU overlay 経由）
 
 ### 4. 個別実行
 
@@ -214,6 +216,16 @@ ansible-playbook -i inventory.ini extra/extra-wayland.yml --ask-pass
 second_disk: "sdb"
 ccache_dir: "/mnt/sdb/ccache"
 ```
+
+## Bluetooth
+
+- `extra-bluetooth.yml` 実行時にまず BT ハードウェアを検出（`lspci` / `lsusb` / `rfkill`）
+- ハードが見つからない場合はメッセージを出して後続タスクをすべてスキップ（playbook は正常終了）
+- ハードが検出された場合: `bluez` + `blueman` をインストールし `bluetooth.service` を有効化
+- `blueman-applet` が labwc autostart で常駐し、waybar トレイにアイコンが表示される
+- waybar の `bluetooth` モジュールでバー上に BT 状態・接続デバイス名を表示
+- クリックで `blueman-manager` が起動（Wayland ネイティブ、XWayland 不要）
+- 初回は rfkill でブロックされている場合があるため `rfkill unblock bluetooth` または blueman-manager から有効化すること
 
 ## WiFi
 

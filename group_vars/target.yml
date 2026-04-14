@@ -34,6 +34,9 @@ default_user: gentoo
 default_user_password: gentoo
 sudo_nopasswd: true
 
+# Display
+display_idle_timeout: 3600  # seconds until display off (default: 1 hour)
+
 # Remote Desktop
 vnc_username: "{{ default_user }}"
 vnc_password: !vault |
