@@ -7,6 +7,20 @@
   gather_facts: false
 
   tasks:
+    - name: Install eselect-repository and git
+      ansible.builtin.command: emerge --noreplace app-eselect/eselect-repository dev-vcs/git
+      register: eselect_install
+      changed_when: "'Installing' in eselect_install.stdout"
+
+    - name: Enable GURU overlay
+      ansible.builtin.command: eselect repository enable guru
+      args:
+        creates: /var/db/repos/guru
+
+    - name: Sync GURU overlay
+      ansible.builtin.command: emaint sync -r guru
+      changed_when: false
+
     # google-chrome/vscode は gtk+[X] を必須で要求する。
     # waybar の依存で cairomm/gtkmm が先にビルドされるため、
     # ここで +X を設定しておかないと extra-gui-tools 実行時に
@@ -266,7 +280,6 @@
           swaybg -i $HOME/.config/labwc/wallpaper.png -m fill &
           waybar &
           swayidle -w timeout {{ display_idle_timeout | default(3600) }} 'wlopm --off "*"' resume 'wlopm --on "*"' &
-          blueman-applet &
           fcitx5 -d &
           wayvnc &
 
