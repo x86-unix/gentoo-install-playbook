@@ -57,6 +57,10 @@
         -e CONFIG_NF_TABLES_BRIDGE=
         -e CONFIG_NFT_NAT=
         -e CONFIG_EXT4_FS=
+        -e CONFIG_BT_HIDP=
+        -e CONFIG_UHID=
+        -e CONFIG_BT_RFCOMM=
+        -e CONFIG_BT_BNEP=
         /boot/config-{{ kernel_version }} /usr/src/linux/.config 2>/dev/null || true'
       register: existing_kconfig
       changed_when: false
@@ -72,7 +76,11 @@
              ('CONFIG_VETH=y' not in existing_kconfig.stdout and 'CONFIG_VETH=m' not in existing_kconfig.stdout) or
              'CONFIG_NF_TABLES_BRIDGE=y' not in existing_kconfig.stdout and 'CONFIG_NF_TABLES_BRIDGE=m' not in existing_kconfig.stdout or
              ('CONFIG_NFT_NAT=y' not in existing_kconfig.stdout and 'CONFIG_NFT_NAT=m' not in existing_kconfig.stdout) or
-             ('CONFIG_EXT4_FS=y' not in existing_kconfig.stdout and 'CONFIG_EXT4_FS=m' not in existing_kconfig.stdout) }}
+             ('CONFIG_EXT4_FS=y' not in existing_kconfig.stdout and 'CONFIG_EXT4_FS=m' not in existing_kconfig.stdout) or
+             ('CONFIG_BT_HIDP=y' not in existing_kconfig.stdout and 'CONFIG_BT_HIDP=m' not in existing_kconfig.stdout) or
+             ('CONFIG_UHID=y' not in existing_kconfig.stdout and 'CONFIG_UHID=m' not in existing_kconfig.stdout) or
+             ('CONFIG_BT_RFCOMM=y' not in existing_kconfig.stdout and 'CONFIG_BT_RFCOMM=m' not in existing_kconfig.stdout) or
+             ('CONFIG_BT_BNEP=y' not in existing_kconfig.stdout and 'CONFIG_BT_BNEP=m' not in existing_kconfig.stdout) }}
 
     - name: Show rebuild decision
       ansible.builtin.debug:
@@ -153,6 +161,15 @@
             scripts/config --module CONFIG_BT_BCM
             scripts/config --module CONFIG_BT_RTL
             scripts/config --enable CONFIG_RFKILL
+            scripts/config --module CONFIG_BT_HIDP
+            scripts/config --enable CONFIG_UHID
+            scripts/config --module CONFIG_BT_RFCOMM
+            scripts/config --enable CONFIG_BT_RFCOMM_TTY
+            scripts/config --module CONFIG_BT_BNEP
+            scripts/config --enable CONFIG_BT_BNEP_MC_FILTER
+            scripts/config --enable CONFIG_BT_BNEP_PROTO_FILTER
+            scripts/config --module CONFIG_SND_SOC_BT_SCO
+            scripts/config --module CONFIG_SND_USB_AUDIO
 
         - name: Enable USB storage and Windows filesystem options
           ansible.builtin.shell: |
