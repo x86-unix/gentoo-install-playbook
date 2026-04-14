@@ -28,9 +28,9 @@
         content: |
           app-i18n/fcitx-skk qt6
           app-i18n/fcitx-qt qt6
+          app-i18n/fcitx:5 -enchant
           dev-qt/qtbase:6 opengl wayland -X
           dev-qt/qttools:6 opengl
-          app-dicts/myspell-en l10n_en-US
 
     - name: Accept ~amd64 keywords for fcitx5
       ansible.builtin.copy:
