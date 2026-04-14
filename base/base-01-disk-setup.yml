@@ -265,11 +265,26 @@
           register: second_disk_check
           failed_when: not second_disk_check.stat.exists
 
+        - name: Try to import second disk pool if not active
+          ansible.builtin.shell: zpool import -f {{ second_disk }} 2>/dev/null || true
+          changed_when: false
+
         - name: Check if ZFS pool for second disk exists
           ansible.builtin.command: zpool list {{ second_disk }}
           register: second_disk_pool
           changed_when: false
           failed_when: false
+
+        - name: Check if second disk dataset exists and has correct mountpoint
+          ansible.builtin.shell: |
+            zfs get -H -o value mountpoint {{ second_disk }}/cache 2>/dev/null || echo none
+          register: second_disk_mp
+          changed_when: false
+          when: second_disk_pool.rc == 0
+
+        - name: Set second disk reuse flag
+          ansible.builtin.set_fact:
+            second_disk_reuse: "{{ second_disk_pool.rc == 0 and (second_disk_mp.stdout | default('none')) | trim == '/mnt/' + second_disk }}"
 
         - name: Create ZFS pool on second disk
           ansible.builtin.command: >
@@ -277,22 +292,20 @@
             -o ashift=12
             -O compression=lz4
             -O mountpoint=none
-            -R {{ mountpoint }}
             {{ second_disk }} /dev/{{ second_disk }}
-          when: second_disk_pool.rc != 0
-
-        - name: Check if ZFS dataset exists
-          ansible.builtin.shell: zfs list {{ second_disk }}/cache 2>/dev/null && echo exists || echo notfound
-          register: second_disk_dataset
-          changed_when: false
+          when: not second_disk_reuse
 
         - name: Create ZFS dataset on second disk
           ansible.builtin.command: zfs create -o mountpoint=/mnt/{{ second_disk }} {{ second_disk }}/cache
-          when: second_disk_dataset.stdout == 'notfound'
+          when: not second_disk_reuse
+
+        - name: Mount second disk dataset
+          ansible.builtin.shell: zfs mount {{ second_disk }}/cache 2>/dev/null || true
+          changed_when: false
 
         - name: Ensure ccache directory on second disk
           ansible.builtin.file:
-            path: "{{ mountpoint }}{{ ccache_dir }}"
+            path: "{{ ccache_dir }}"
             state: directory
             mode: "0775"
           when: ccache_dir | default('') != ''

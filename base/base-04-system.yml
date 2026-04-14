@@ -123,6 +123,26 @@
           # Only non-ZFS filesystems need entries here
           {{ disk_dev }}{{ part_suffix }}2  none  swap  sw  0 0
 
+    # --- Second disk ZFS auto-import (reboot後) ---
+    - name: Create second disk mountpoint in installed system
+      ansible.builtin.file:
+        path: "{{ mountpoint }}/mnt/{{ second_disk }}"
+        state: directory
+        mode: "0755"
+      when: second_disk | default('') != ''
+
+    - name: Enable zfs-import-scan for second disk auto-import
+      ansible.builtin.command: "{{ chroot }} 'systemctl enable zfs-import-scan zfs-mount zfs-import.target'"
+      register: zfs_import_enable
+      changed_when: "'Created symlink' in zfs_import_enable.stdout + zfs_import_enable.stderr"
+      when: second_disk | default('') != ''
+
+    - name: Remove zpool.cache to ensure zfs-import-scan runs
+      ansible.builtin.file:
+        path: "{{ mountpoint }}/etc/zfs/zpool.cache"
+        state: absent
+      when: second_disk | default('') != ''
+
     # --- WiFi (only when WiFi NIC is detected) ---
     - name: Detect WiFi NIC
       ansible.builtin.shell: |
