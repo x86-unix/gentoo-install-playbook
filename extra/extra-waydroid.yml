@@ -17,13 +17,17 @@
           app-containers/lxc ~amd64
           dev-libs/gbinder ~amd64
           dev-python/gbinder ~amd64
+          dev-python/pyclip ~amd64
+          dev-libs/libglibutil ~amd64
+          sys-libs/libcap ~amd64
 
     - name: Enable lxc USE flags
       ansible.builtin.copy:
         dest: /etc/portage/package.use/waydroid
         mode: "0644"
         content: |
-          app-containers/lxc -seccomp
+          app-containers/lxc seccomp
+          sys-libs/libcap static-libs
 
     - name: Ensure GURU overlay is enabled
       ansible.builtin.command: eselect repository enable guru
@@ -50,9 +54,10 @@
         name: "{{ default_user }}"
         groups: waydroid
         append: true
+      when: "'waydroid' in lookup('pipe', 'getent group | cut -d: -f1')"
 
     - name: Check kernel binder support
-      ansible.builtin.command: grep -r CONFIG_ANDROID_BINDER /proc/config.gz
+      ansible.builtin.command: zgrep CONFIG_ANDROID_BINDER /proc/config.gz
       register: binder_check
       changed_when: false
       failed_when: false
