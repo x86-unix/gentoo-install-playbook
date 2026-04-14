@@ -37,6 +37,11 @@
         mode: "0644"
         content: |
           net-wireless/blueman -appindicator
+          x11-libs/gtk+ X
+          x11-libs/cairo X
+          media-libs/libepoxy X
+          media-libs/libglvnd X
+          >=media-libs/freetype-2.14.3 harfbuzz
       when: bt_hw.stdout != "NO_BT"
 
     - name: Install bluez and blueman
