@@ -48,17 +48,25 @@
       register: existing_initramfs
       changed_when: false
 
-    - name: Check if binder is enabled in installed kernel config
+    - name: Check required kernel options in installed config
       ansible.builtin.shell: >
-        {{ chroot }} 'grep -s CONFIG_ANDROID_BINDER_IPC=y
-        /boot/config-{{ kernel_version }} /usr/src/linux/.config 2>/dev/null | head -1'
-      register: existing_binder
+        {{ chroot }} 'grep -sc
+        -e CONFIG_ANDROID_BINDER_IPC=y
+        -e CONFIG_BRIDGE=
+        -e CONFIG_VETH=
+        /boot/config-{{ kernel_version }} /usr/src/linux/.config 2>/dev/null || true'
+      register: existing_kconfig
       changed_when: false
       failed_when: false
 
     - name: Determine if rebuild needed
       ansible.builtin.set_fact:
-        need_rebuild: "{{ installed_kernel_match.stdout == '' or existing_zfs_module.stdout == '' or existing_binder.stdout == '' }}"
+        need_rebuild: >-
+          {{ installed_kernel_match.stdout == '' or
+             existing_zfs_module.stdout == '' or
+             'CONFIG_ANDROID_BINDER_IPC=y' not in existing_kconfig.stdout or
+             ('CONFIG_BRIDGE=y' not in existing_kconfig.stdout and 'CONFIG_BRIDGE=m' not in existing_kconfig.stdout) or
+             ('CONFIG_VETH=y' not in existing_kconfig.stdout and 'CONFIG_VETH=m' not in existing_kconfig.stdout) }}
 
     - name: Show rebuild decision
       ansible.builtin.debug:
@@ -66,7 +74,7 @@
           Rebuild needed: {{ need_rebuild }}
           (kernel installed: {{ installed_kernel_match.stdout != '' }},
           zfs module: {{ existing_zfs_module.stdout != '' }},
-          binder enabled: {{ existing_binder.stdout != '' }})
+          binder/bridge/veth: {{ existing_kconfig.stdout | default('') }})
 
     # --- Step 3: Generate .config (only if rebuild needed) ---
     - name: Generate config and build kernel
