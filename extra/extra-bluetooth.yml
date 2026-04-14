@@ -1,0 +1,69 @@
+---
+# Bluetooth support: bluez + blueman tray applet
+# Wayland: blueman uses GTK3 but works natively under Wayland (no XWayland needed)
+# Tray icon appears in waybar via the "bluetooth" module + system tray
+
+- name: "Extra: Bluetooth"
+  hosts: target
+  gather_facts: false
+
+  tasks:
+    - name: Check Bluetooth hardware presence
+      ansible.builtin.shell: |
+        pci=$(lspci 2>/dev/null | grep -i bluetooth || true)
+        usb=$(lsusb 2>/dev/null | grep -i bluetooth || true)
+        rfk=$(rfkill list 2>/dev/null | grep -i bluetooth || true)
+        if [ -z "$pci" ] && [ -z "$usb" ] && [ -z "$rfk" ]; then
+          echo "NO_BT"
+        else
+          printf '%s\n%s\n%s\n' "$pci" "$usb" "$rfk" | grep -v '^$'
+        fi
+      register: bt_hw
+      changed_when: false
+
+    - name: Abort if no Bluetooth hardware found
+      ansible.builtin.debug:
+        msg: "Bluetooth ハードウェアが検出されませんでした。BT アダプタを確認してください。スキップします。"
+      when: bt_hw.stdout == "NO_BT"
+
+    - name: Show detected Bluetooth hardware
+      ansible.builtin.debug:
+        msg: "Bluetooth ハードウェア検出: {{ bt_hw.stdout_lines }}"
+      when: bt_hw.stdout != "NO_BT"
+
+    - name: Enable blueman USE flags
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/bluetooth
+        mode: "0644"
+        content: |
+          net-wireless/blueman -appindicator
+      when: bt_hw.stdout != "NO_BT"
+
+    - name: Install bluez and blueman
+      ansible.builtin.command: >
+        emerge --noreplace
+        net-wireless/bluez
+        net-wireless/blueman
+      register: bt_install
+      changed_when: "'Installing' in bt_install.stdout"
+      when: bt_hw.stdout != "NO_BT"
+
+    - name: Enable bluetooth service
+      ansible.builtin.systemd:
+        name: bluetooth
+        enabled: true
+        state: started
+      when: bt_hw.stdout != "NO_BT"
+
+    - name: Ensure plugdev group exists
+      ansible.builtin.group:
+        name: plugdev
+        state: present
+      when: bt_hw.stdout != "NO_BT"
+
+    - name: Add user to plugdev group (blueman requires it)
+      ansible.builtin.user:
+        name: "{{ default_user }}"
+        groups: plugdev
+        append: true
+      when: bt_hw.stdout != "NO_BT"

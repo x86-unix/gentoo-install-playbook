@@ -19,17 +19,20 @@
 - name: Import sound
   ansible.builtin.import_playbook: extra/extra-sound.yml
 
+- name: Import bluetooth
+  ansible.builtin.import_playbook: extra/extra-bluetooth.yml
+
 - name: Import wayland desktop
   ansible.builtin.import_playbook: extra/extra-wayland.yml
 
 - name: Import IME
   ansible.builtin.import_playbook: extra/extra-ime.yml
 
-- name: Import GUI tools
-  ansible.builtin.import_playbook: extra/extra-gui-tools.yml
-
 - name: Import remote desktop
   ansible.builtin.import_playbook: extra/extra-remote-desktop.yml
 
 - name: Import waydroid
   ansible.builtin.import_playbook: extra/extra-waydroid.yml
+
+- name: Import GUI tools
+  ansible.builtin.import_playbook: extra/extra-gui-tools.yml

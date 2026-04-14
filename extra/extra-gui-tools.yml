@@ -141,3 +141,18 @@
         - gcr-viewer.desktop
         - code-url-handler.desktop
         - fcitx5-wayland-launcher.desktop
+        - assistant.desktop
+        - com.google.Chrome.desktop
+        - fcitx5-configtool.desktop
+        - notification-daemon.desktop
+        - org.fcitx.Fcitx5.desktop
+        - org.fcitx.fcitx5-migrator.desktop
+        - org.fcitx.fcitx5-qt6-gui-wrapper.desktop
+        - qdbusviewer.desktop
+        - waydroid.app.install.desktop
+        - waydroid.market.desktop
+        - blueman-adapters.desktop
+        - blueman-manager.desktop
+        - imv.desktop
+        - imv-dir.desktop
+        - mpv.desktop
