@@ -1,0 +1,15 @@
+---
+- name: Install eselect-repository and git
+  ansible.builtin.command: emerge --noreplace app-eselect/eselect-repository dev-vcs/git
+  register: _eselect_install
+  changed_when: "'Installing' in _eselect_install.stdout"
+
+- name: Enable {{ overlay_name }} overlay
+  ansible.builtin.command: eselect repository enable {{ overlay_name }}
+  args:
+    creates: /var/db/repos/{{ overlay_name }}
+
+- name: Sync {{ overlay_name }} overlay
+  ansible.builtin.command: emaint sync -r {{ overlay_name }}
+  args:
+    creates: /var/db/repos/{{ overlay_name }}/.git
