@@ -27,13 +27,15 @@ base/
 extra/
   extra-portage-git.yml    # portage sync を git に切り替え・eix インストール
   extra-services.yml       # システムサービス（cronie）
-  extra-cli-tools.yml      # CLI ツール（vim, sudo, bash-completion 等）
+  extra-cli-tools.yml      # CLI ツール（sudo, bash-completion, bind-tools 等）
   extra-account.yml        # sudo 設定・ユーザー作成
   extra-sound.yml          # サウンド（pipewire + wireplumber）
   extra-bluetooth.yml      # Bluetooth（bluez + blueman、ハード検出付き）
-  extra-wayland.yml        # Wayland デスクトップ（labwc）
-  extra-ime.yml            # IME（fcitx5 + SKK、ソースビルド）
-  extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode、GURU overlay）
+  extra-wayland.yml        # Wayland デスクトップ（labwc + waybar + foot + wofi）
+  extra-ime.yml            # IME（fcitx5 + SKK、gentoo-zh overlay）
+  extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode, yazi、GURU overlay）
+  extra-remote-desktop.yml # リモートデスクトップ（wayvnc + noVNC）
+  extra-waydroid.yml       # Android コンテナ（Waydroid、GURU overlay）
 
 group_vars/target.yml      # 共通設定値
 host_vars/<IP>.yml         # ホスト固有設定（disk, hostname 等）
@@ -105,9 +107,9 @@ vi group_vars/target.yml
 
 ```yaml
 # Disk
-default_target_disk: sda       # インストール先ディスク（例: sda, nvme0n1）
-second_disk: ""                 # 2台目物理ディスク名。設定すると ZFS pool を作成し /mnt/<disk> にマウント
-ccache_dir: ""                  # ccache ディレクトリ。空の場合は /var/cache/ccache を使用
+default_target_disk: sda
+second_disk: ""
+ccache_dir: ""
 
 # System
 default_timezone: Asia/Tokyo
@@ -132,7 +134,7 @@ default_user: gentoo
 default_user_password: gentoo
 sudo_nopasswd: true
 
-# WiFi (optional) - WiFi NIC が検出された場合のみ使用
+# WiFi (optional)
 wifi_ssid: ""
 wifi_password: ""
 ```
@@ -177,7 +179,7 @@ ansible-playbook -i inventory.ini site-base.yml -e ansible_ssh_pass=rescue --vau
 
 最後に reboot 確認が出る。`yes` で再起動、それ以外でスキップ。
 
-カーネルビルドに 1〜2 時間かかる。
+カーネルビルドに 1〜2 時間かかる（ccache 有効時は短縮）。
 
 ### 3. 拡張セットアップ（reboot 後）
 
@@ -187,21 +189,23 @@ ansible-playbook -i inventory.ini site-extra.yml --ask-pass
 
 実行順序：
 
-1. portage を git sync に切り替え
+1. portage を git sync に切り替え・eix インストール
 2. システムサービス（cronie）
-3. CLI ツール（vim, sudo, bash-completion 等）
+3. CLI ツール（sudo, bash-completion, bind-tools 等）
 4. ユーザーアカウント・sudo 設定
 5. サウンド（pipewire + wireplumber）
-6. Bluetooth（bluez + blueman、ハード未検出時はスキップ）
-7. Wayland デスクトップ（labwc + waybar + foot + wofi）
-8. IME（fcitx5 + SKK、ソースビルド）
-9. GUI ツール（Google Chrome, VSCode、GURU overlay 経由）
+6. Wayland デスクトップ（labwc + waybar + foot + wofi）
+7. IME（fcitx5 + SKK、gentoo-zh overlay）
+8. GUI ツール（Google Chrome, VSCode, yazi、GURU overlay）
+9. リモートデスクトップ（wayvnc + noVNC）
+10. Android コンテナ（Waydroid、GURU overlay）
 
 ### 4. 個別実行
 
 ```bash
 ansible-playbook -i inventory.ini base/base-05-kernel.yml -e ansible_ssh_pass=rescue
 ansible-playbook -i inventory.ini extra/extra-wayland.yml --ask-pass
+ansible-playbook -i inventory.ini extra/extra-waydroid.yml --ask-pass
 ```
 
 ## ccache
@@ -209,8 +213,6 @@ ansible-playbook -i inventory.ini extra/extra-wayland.yml --ask-pass
 - `FEATURES="ccache"` を make.conf に設定済み
 - デフォルトは `/var/cache/ccache`（max 20G）
 - `second_disk` を設定した場合は `ccache_dir` を合わせて指定すると2台目ディスク上に配置できる
-
-2台目ディスクを使う場合の設定例（`sdb` の場合）：
 
 ```yaml
 second_disk: "sdb"
@@ -223,7 +225,6 @@ ccache_dir: "/mnt/sdb/ccache"
 - ハードが見つからない場合はメッセージを出して後続タスクをすべてスキップ（playbook は正常終了）
 - ハードが検出された場合: `bluez` + `blueman` をインストールし `bluetooth.service` を有効化
 - `blueman-applet` が labwc autostart で常駐し、waybar トレイにアイコンが表示される
-- waybar の `bluetooth` モジュールでバー上に BT 状態・接続デバイス名を表示
 - クリックで `blueman-manager` が起動（Wayland ネイティブ、XWayland 不要）
 - 初回は rfkill でブロックされている場合があるため `rfkill unblock bluetooth` または blueman-manager から有効化すること
 
@@ -231,14 +232,34 @@ ccache_dir: "/mnt/sdb/ccache"
 
 - WiFi NIC（`wlan*`, `wlp*`）が検出された場合のみ `iwd` をインストール・設定
 - `wifi_ssid` と `wifi_password` を設定すると起動時に自動接続
-- 有線と WiFi NIC が共存していても WiFi NIC が存在すれば kernel の crypto オプション（`CONFIG_CRYPTO_*`）を有効化してビルドする
-- 有線のみの環境では WiFi NIC がなければ何もしない
+- WiFi NIC が存在する場合、カーネルの crypto オプション（`CONFIG_CRYPTO_*`）を有効化してビルドする
 - パスワードは `ansible-vault` で暗号化推奨：
 
 ```bash
 ansible-vault encrypt_string 'your_ssid' --name 'wifi_ssid'
 ansible-vault encrypt_string 'your_password' --name 'wifi_password'
 ```
+
+## リモートデスクトップ
+
+- `extra-remote-desktop.yml` で wayvnc（Wayland VNC サーバ）+ noVNC（WebSocket ブリッジ）をインストール
+- labwc autostart で `wayvnc` が自動起動し、`novnc.service` が WebSocket ブリッジを提供
+- ブラウザから `http://<host>:6080/vnc.html` でアクセス可能
+- デフォルトは認証なし・localhost バインド（`127.0.0.1:5900`）
+
+## Waydroid
+
+- `extra-waydroid.yml` で Android コンテナ環境をインストール（GURU overlay 使用）
+- カーネルに `CONFIG_ANDROID_BINDER_IPC=y` / `CONFIG_ANDROID_BINDERFS=y` が必要
+  - `base-05-kernel.yml` で自動的に有効化される
+  - binder が未設定のカーネルが検出された場合、自動的にカーネルを再ビルドする
+- インストール後に初期化が必要：
+
+```bash
+waydroid init
+```
+
+- 起動は `waydroid show-full-ui` またはアプリランチャーから
 
 ## 冪等性
 
@@ -248,7 +269,7 @@ ansible-vault encrypt_string 'your_password' --name 'wifi_password'
 | base-02 | `/usr/bin/emerge` が存在する |
 | base-03 | portage tree が存在する、make.conf が同一 |
 | base-04 | 各設定ファイルが同一 |
-| base-05 | カーネルイメージ + ZFS モジュール + initramfs が存在する |
+| base-05 | カーネルイメージ + ZFS モジュール + initramfs が存在し、binder が有効 |
 | base-06 | GRUB が MBR/EFI にインストール済み、grub.cfg が同一 |
 | base-07 | 毎回実行（パスワード設定）。reboot は確認後のみ |
 
@@ -258,5 +279,5 @@ ansible-vault encrypt_string 'your_password' --name 'wifi_password'
 - reboot を拒否した場合、ライブ環境の bind mount はそのまま維持される（再実行可能）
 - ライブ環境のカーネル config（`/proc/config.gz`）をベースに `localmodconfig` でカーネルを最小化している。異なるライブ環境で再実行すると config が変わりカーネルが再ビルドされる
 - `group_vars/target.yml` に root パスワードとユーザーパスワードが平文で保存される。必要に応じて `ansible-vault` で暗号化すること
-- `extra-ime.yml` は fcitx5 + SKK をソースからビルドするため時間がかかる
-- `extra-gui-tools.yml` は GURU overlay を使用する。初回は overlay の sync が走る
+- `extra-ime.yml` は fcitx5 + SKK を gentoo-zh overlay からインストールする
+- `extra-gui-tools.yml` および `extra-waydroid.yml` は GURU overlay を使用する。初回は overlay の sync が走る
