@@ -7,6 +7,11 @@
   hosts: target
   gather_facts: false
 
+  roles:
+    - role: overlay
+      vars:
+        overlay_name: guru
+
   tasks:
     - name: Accept ~amd64 keyword for waydroid and deps
       ansible.builtin.copy:
@@ -28,15 +33,6 @@
         content: |
           app-containers/lxc seccomp
           sys-libs/libcap static-libs
-
-    - name: Ensure GURU overlay is enabled
-      ansible.builtin.command: eselect repository enable guru
-      args:
-        creates: /var/db/repos/guru
-
-    - name: Sync GURU overlay
-      ansible.builtin.command: emaint sync -r guru
-      changed_when: false
 
     - name: Install waydroid
       ansible.builtin.command: emerge --noreplace app-containers/waydroid
