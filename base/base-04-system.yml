@@ -131,10 +131,13 @@
         mode: "0755"
       when: second_disk | default('') != ''
 
-    - name: Enable zfs-import-scan for second disk auto-import
-      ansible.builtin.command: "{{ chroot }} 'systemctl enable zfs-import-scan zfs-mount zfs-import.target'"
-      register: zfs_import_enable
-      changed_when: "'Created symlink' in zfs_import_enable.stdout + zfs_import_enable.stderr"
+    - name: Enable ZFS auto-import units for second disk
+      ansible.builtin.shell: |
+        for unit in zfs-import-scan.service zfs-import-cache.service zfs-mount.service zfs-import.target zfs.target; do
+          systemctl --root={{ mountpoint }} enable $unit 2>/dev/null && echo "enabled $unit" || true
+        done
+      register: zfs_units_enable
+      changed_when: "'enabled' in zfs_units_enable.stdout"
       when: second_disk | default('') != ''
 
     - name: Remove zpool.cache to ensure zfs-import-scan runs
