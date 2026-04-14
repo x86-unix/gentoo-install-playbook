@@ -129,11 +129,15 @@
             scripts/config --module CONFIG_BRIDGE
             scripts/config --module CONFIG_VETH
             scripts/config --enable CONFIG_NF_TABLES_BRIDGE
+            scripts/config --module CONFIG_NETFILTER_NETLINK
+            scripts/config --enable CONFIG_NF_CONNTRACK
+            scripts/config --module CONFIG_NF_NAT
             scripts/config --module CONFIG_NFT_NAT
             scripts/config --module CONFIG_NFT_MASQ
-            scripts/config --module CONFIG_NF_NAT
-            scripts/config --module CONFIG_IP_NF_NAT
             scripts/config --module CONFIG_IP_NF_IPTABLES
+            scripts/config --module CONFIG_IP_NF_NAT
+            scripts/config --module CONFIG_IP6_NF_IPTABLES
+            scripts/config --module CONFIG_IP6_NF_NAT
 
         - name: Enable Bluetooth kernel options
           ansible.builtin.shell: |
