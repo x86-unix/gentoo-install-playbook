@@ -3,3 +3,4 @@ default_hostname: zfs-gentoo-desktop
 default_target_disk: sda
 second_disk: "sdb"
 ccache_dir: "/mnt/sdb/ccache"
+wallpaper: "fern-anime-wallpaper-4k.png"
