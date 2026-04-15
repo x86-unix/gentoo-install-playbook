@@ -81,7 +81,7 @@
           #!/bin/sh
           waydroid session start &
           sleep 2
-          waydroid show-full-ui
+          waydroid show-full-ui --width 1152 --height 648
 
     - name: Create waydroid desktop entry
       ansible.builtin.copy:
