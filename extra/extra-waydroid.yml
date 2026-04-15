@@ -73,6 +73,14 @@
           then run: waydroid init
       when: binder_check.rc != 0 or 'CONFIG_ANDROID_BINDER_IPC=y' not in binder_check.stdout
 
+    - name: Enable multi_windows mode in waydroid.cfg
+      ansible.builtin.ini_file:
+        path: /var/lib/waydroid/waydroid.cfg
+        section: properties
+        option: persist.waydroid.multi_windows
+        value: "true"
+        mode: "0644"
+
     - name: Create waydroid launcher script
       ansible.builtin.copy:
         dest: /usr/local/bin/waydroid-launch
