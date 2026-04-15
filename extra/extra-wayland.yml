@@ -348,7 +348,7 @@
 
     - name: Deploy wallpaper
       ansible.builtin.copy:
-        src: ../files/frieren-blue-flower-anime-wallpaper-4k.png
+        src: ../files/{{ wallpaper | default('frieren-blue-flower-anime-wallpaper-4k.png') }}
         dest: /home/{{ default_user }}/.config/labwc/wallpaper.png
         owner: "{{ default_user }}"
         mode: "0644"
