@@ -42,6 +42,13 @@
           media-libs/libepoxy X
           media-libs/libglvnd X
           >=media-libs/freetype-2.14.3 harfbuzz
+          media-video/pipewire bluetooth
+      when: bt_hw.stdout != "NO_BT"
+
+    - name: Rebuild pipewire with bluetooth USE flag
+      ansible.builtin.command: emerge --newuse media-video/pipewire
+      register: pipewire_rebuild
+      changed_when: "'Installing' in pipewire_rebuild.stdout"
       when: bt_hw.stdout != "NO_BT"
 
     - name: Install bluez and blueman
