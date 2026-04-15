@@ -52,6 +52,7 @@
           gui-libs/greetd ~amd64
           gui-apps/tuigreet ~amd64
           gui-apps/wlopm ~amd64
+          x11-themes/apple-cursor ~amd64
 
     - name: Install labwc and essentials
       ansible.builtin.command: >
@@ -70,7 +71,7 @@
         media-fonts/noto-cjk
         media-fonts/noto-emoji
         media-fonts/jetbrains-mono
-        x11-themes/capitaine-cursors
+        x11-themes/apple-cursor
       register: labwc_install
       changed_when: "'Installing' in labwc_install.stdout"
 
@@ -296,7 +297,7 @@
           [Icon Theme]
           Name=Default
           Comment=Default cursor theme
-          Inherits=capitaine-cursors
+          Inherits=macOS
 
     - name: Configure labwc autostart
       ansible.builtin.copy:
@@ -321,7 +322,7 @@
           QT_IM_MODULE=fcitx
           XMODIFIERS=@im=fcitx
           QT_QPA_PLATFORM=wayland
-          XCURSOR_THEME=capitaine-cursors
+          XCURSOR_THEME=macOS
           XCURSOR_SIZE=24
 
     - name: Configure labwc rc.xml (workspaces + keybinds)
