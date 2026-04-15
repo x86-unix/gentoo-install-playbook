@@ -52,6 +52,7 @@
           gui-libs/greetd ~amd64
           gui-apps/tuigreet ~amd64
           gui-apps/wlopm ~amd64
+          gui-apps/wlogout ~amd64
           x11-themes/apple-cursor ~amd64
 
     - name: Install labwc and essentials
@@ -65,6 +66,7 @@
         gui-apps/swaybg
         gui-apps/swayidle
         gui-apps/wlopm
+        gui-apps/wlogout
         gui-libs/greetd
         gui-apps/tuigreet
         x11-misc/xdg-user-dirs
@@ -167,7 +169,7 @@
             "font": "Noto Sans CJK JP 12",
             "modules-left": ["ext/workspaces", "custom/launcher", "clock"],
             "modules-center": [],
-            "modules-right": ["bluetooth", "pulseaudio", "memory", "cpu", "tray", "custom/reboot", "custom/poweroff"],
+            "modules-right": ["bluetooth", "pulseaudio", "memory", "cpu", "tray", "custom/power"],
             "ext/workspaces": {
               "format": "{name}",
               "sort-by-number": true,
@@ -198,16 +200,43 @@
               "tooltip-format-enumerate-connected": "{device_alias} ({device_address})"
             },
             "tray": { "spacing": 8 },
-            "custom/reboot": {
-              "format": "🔄",
-              "on-click": "zenity --question --text='Reboot?' && systemctl reboot",
-              "tooltip-format": "Reboot"
-            },
-            "custom/poweroff": {
+            "custom/power": {
               "format": "⏻",
-              "on-click": "zenity --question --text='Power off?' && systemctl poweroff",
-              "tooltip-format": "Power Off"
+              "on-click": "wlogout",
+              "tooltip-format": "Power Menu"
             }
+          }
+
+    - name: Ensure wlogout config directory
+      ansible.builtin.file:
+        path: /home/{{ default_user }}/.config/wlogout
+        state: directory
+        owner: "{{ default_user }}"
+        mode: "0755"
+
+    - name: Configure wlogout
+      ansible.builtin.copy:
+        dest: /home/{{ default_user }}/.config/wlogout/layout
+        owner: "{{ default_user }}"
+        mode: "0644"
+        content: |
+          {
+            "label": "logout",
+            "action": "loginctl terminate-user $USER",
+            "text": "Logout",
+            "keybind": "l"
+          }
+          {
+            "label": "reboot",
+            "action": "systemctl reboot",
+            "text": "Reboot",
+            "keybind": "r"
+          }
+          {
+            "label": "shutdown",
+            "action": "systemctl poweroff",
+            "text": "Shutdown",
+            "keybind": "s"
           }
 
     - name: Configure waybar style
@@ -246,7 +275,9 @@
             padding: 0 8px;
             font-size: 16px;
           }
-          #custom-poweroff {
+          #custom-power {
+            padding: 0 8px;
+            font-size: 16px;
             color: #f38ba8;
           }
 
