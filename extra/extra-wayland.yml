@@ -202,7 +202,7 @@
             "tray": { "spacing": 8 },
             "custom/power": {
               "format": "⏻",
-              "on-click": "wlogout",
+              "on-click": "wlogout -m 450",
               "tooltip-format": "Power Menu"
             }
           }
