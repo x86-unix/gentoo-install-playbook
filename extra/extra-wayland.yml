@@ -200,12 +200,12 @@
             "tray": { "spacing": 8 },
             "custom/reboot": {
               "format": "🔄",
-              "on-click": "systemctl reboot",
+              "on-click": "zenity --question --text='Reboot?' && systemctl reboot",
               "tooltip-format": "Reboot"
             },
             "custom/poweroff": {
               "format": "⏻",
-              "on-click": "systemctl poweroff",
+              "on-click": "zenity --question --text='Power off?' && systemctl poweroff",
               "tooltip-format": "Power Off"
             }
           }
