@@ -79,9 +79,11 @@
         mode: "0755"
         content: |
           #!/bin/sh
+          waydroid prop set persist.waydroid.width 1152
+          waydroid prop set persist.waydroid.height 648
           waydroid session start &
           sleep 2
-          waydroid show-full-ui --width 1152 --height 648
+          waydroid show-full-ui
 
     - name: Create waydroid desktop entry
       ansible.builtin.copy:
