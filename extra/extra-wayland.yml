@@ -165,7 +165,7 @@
             "font": "Noto Sans CJK JP 12",
             "modules-left": ["ext/workspaces", "custom/launcher", "clock"],
             "modules-center": [],
-            "modules-right": ["bluetooth", "pulseaudio", "memory", "cpu", "tray"],
+            "modules-right": ["bluetooth", "pulseaudio", "memory", "cpu", "tray", "custom/reboot", "custom/poweroff"],
             "ext/workspaces": {
               "format": "{name}",
               "sort-by-number": true,
@@ -195,7 +195,17 @@
               "tooltip-format-connected": "{controller_alias}\n{device_enumerate}",
               "tooltip-format-enumerate-connected": "{device_alias} ({device_address})"
             },
-            "tray": { "spacing": 8 }
+            "tray": { "spacing": 8 },
+            "custom/reboot": {
+              "format": "🔄",
+              "on-click": "systemctl reboot",
+              "tooltip-format": "Reboot"
+            },
+            "custom/poweroff": {
+              "format": "⏻",
+              "on-click": "systemctl poweroff",
+              "tooltip-format": "Power Off"
+            }
           }
 
     - name: Configure waybar style
@@ -229,6 +239,13 @@
           }
           #custom-launcher {
             font-size: 16px;
+          }
+          #custom-reboot, #custom-poweroff {
+            padding: 0 8px;
+            font-size: 16px;
+          }
+          #custom-poweroff {
+            color: #f38ba8;
           }
 
     - name: Configure labwc menu.xml
