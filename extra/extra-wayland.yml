@@ -315,4 +315,11 @@
               <keybind key="W-Return"><action name="Execute"><command>foot</command></action></keybind>
               <keybind key="A-F4"><action name="Close"/></keybind>
             </keyboard>
+            <windowRules>
+              <windowRule identifier="Waydroid" matchType="exact">
+                <action name="SetMaximized" maximized="no"/>
+                <action name="SetSize" width="1152" height="648"/>
+                <action name="MoveTo" x="0" y="0"/>
+              </windowRule>
+            </windowRules>
           </labwc_config>
