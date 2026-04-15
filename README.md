@@ -260,6 +260,7 @@ waydroid init
 ```
 
 - 起動は `waydroid show-full-ui` またはアプリランチャーから
+- ウィンドウモード・サイズ・位置の設定は [docs/waydroid.md](docs/waydroid.md) を参照
 
 ## 冪等性
 
