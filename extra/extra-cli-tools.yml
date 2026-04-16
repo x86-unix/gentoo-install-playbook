@@ -8,7 +8,7 @@
 
   tasks:
     - name: Install bind-tools, netcat, sudo and bash-completion
-      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-admin/sudo app-shells/bash-completion
+      ansible.builtin.command: emerge --noreplace net-dns/bind-tools net-analyzer/netcat app-admin/sudo app-shells/bash-completion app-arch/7zip dev-util/github-cli
       register: tools_install
       changed_when: "'Installing' in tools_install.stdout"
 
