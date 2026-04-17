@@ -143,6 +143,7 @@
           Name={{ item }}
       loop:
         - vim.desktop
+        - flameshot.desktop
         - foot-server.desktop
         - footclient.desktop
         - gcr-prompter.desktop
