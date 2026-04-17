@@ -318,10 +318,6 @@
             padding: 0 8px;
             font-size: 16px;
           }
-          #custom-screenshot {
-            padding: 0 8px;
-            font-size: 16px;
-          }
           #custom-power {
             padding: 0 8px;
             font-size: 16px;
