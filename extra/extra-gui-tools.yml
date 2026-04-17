@@ -29,7 +29,7 @@
           media-fonts/nerd-fonts ~amd64
 
     - name: Install google-chrome and vscode
-      ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode x11-themes/papirus-icon-theme media-video/mpv media-gfx/imv app-misc/yazi media-fonts/nerd-fonts
+      ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode x11-themes/papirus-icon-theme media-video/mpv media-gfx/imv app-misc/yazi media-fonts/nerd-fonts x11-apps/xrandr
       register: gui_install
       changed_when: "'Installing' in gui_install.stdout"
 
