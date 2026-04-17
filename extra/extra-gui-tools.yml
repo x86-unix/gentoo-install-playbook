@@ -123,6 +123,13 @@
           Icon=system-file-manager
           Categories=System;FileManager;
 
+    - name: Ensure flameshot config directory
+      ansible.builtin.file:
+        path: /home/{{ default_user }}/.config/flameshot
+        state: directory
+        owner: "{{ default_user }}"
+        mode: "0755"
+
     - name: Configure flameshot (grim adapter for Wayland)
       ansible.builtin.copy:
         dest: /home/{{ default_user }}/.config/flameshot/flameshot.ini
