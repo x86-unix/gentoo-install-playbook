@@ -28,8 +28,16 @@
           app-misc/yazi ~amd64
           media-fonts/nerd-fonts ~amd64
 
+    - name: Enable opengl USE flag for qtbase (required by flameshot wayland)
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/flameshot
+        mode: "0644"
+        content: |
+          dev-qt/qtbase opengl wayland
+          dev-qt/qtdeclarative opengl
+
     - name: Install google-chrome and vscode
-      ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode x11-themes/papirus-icon-theme media-video/mpv media-gfx/imv app-misc/yazi media-fonts/nerd-fonts x11-apps/xrandr
+      ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode x11-themes/papirus-icon-theme media-video/mpv media-gfx/imv app-misc/yazi media-fonts/nerd-fonts x11-apps/xrandr media-gfx/flameshot
       register: gui_install
       changed_when: "'Installing' in gui_install.stdout"
 
