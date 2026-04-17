@@ -42,6 +42,7 @@
           >=media-plugins/alsa-plugins-1.2.12 pulseaudio
           sys-auth/seatd server
           >=sys-apps/systemd-259.4-r1 policykit
+          >=media-libs/mesa-25.3.6 X
 
     - name: Accept ~amd64 keyword for labwc/greetd
       ansible.builtin.copy:
@@ -59,6 +60,7 @@
       ansible.builtin.command: >
         emerge --noreplace
         gui-wm/labwc
+        x11-base/xwayland
         gui-apps/waybar
         gui-apps/foot
         gui-apps/wofi
