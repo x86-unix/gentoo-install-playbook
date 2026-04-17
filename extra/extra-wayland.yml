@@ -171,7 +171,7 @@
             "font": "Noto Sans CJK JP 12",
             "modules-left": ["ext/workspaces", "custom/launcher", "clock"],
             "modules-center": [],
-            "modules-right": ["bluetooth", "pulseaudio", "memory", "cpu", "tray", "custom/power"],
+            "modules-right": ["bluetooth", "pulseaudio", "memory", "cpu", "tray", "custom/screenshot", "custom/power"],
             "ext/workspaces": {
               "format": "{name}",
               "sort-by-number": true,
@@ -202,6 +202,11 @@
               "tooltip-format-enumerate-connected": "{device_alias} ({device_address})"
             },
             "tray": { "spacing": 8 },
+            "custom/screenshot": {
+              "format": "📷",
+              "on-click": "flameshot gui",
+              "tooltip-format": "Screenshot"
+            },
             "custom/power": {
               "format": "⏻",
               "on-click": "wlogout -m 460",
@@ -315,6 +320,10 @@
             font-size: 16px;
           }
           #custom-reboot, #custom-poweroff {
+            padding: 0 8px;
+            font-size: 16px;
+          }
+          #custom-screenshot {
             padding: 0 8px;
             font-size: 16px;
           }
