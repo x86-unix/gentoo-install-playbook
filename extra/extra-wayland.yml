@@ -437,6 +437,8 @@
               </context>
             </mouse>
             <windowRules>
-              <windowRule identifier="Waydroid" serverDecoration="yes"/>
+              <windowRule identifier="Waydroid" serverDecoration="yes">
+                <action name="MoveTo" x="0" y="0" />
+              </windowRule>
             </windowRules>
           </labwc_config>
