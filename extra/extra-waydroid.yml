@@ -95,3 +95,27 @@
           Type=Application
           Icon=waydroid
           Categories=System;Emulator;
+
+    - name: Create waydroid window hint script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/waydroid-window-hint
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          HINT="waydroid prop set persist.waydroid.multi_windows true
+          waydroid prop set persist.waydroid.width 1080
+          waydroid prop set persist.waydroid.height 720"
+
+          echo "$HINT"
+          echo
+          printf "実行しますか? (yes/No): "
+          read ans
+          if [ "$ans" = "yes" ]; then
+            eval "$HINT"
+            echo "設定しました"
+            sleep 1
+          fi
+
+          sed -i -n '/Waydroid ウィンドウ化/,/<\/item>/!p' ~/.config/labwc/menu.xml
+          sed -i 'N;s/<separator \/>[[:space:]]*\n[[:space:]]*<separator \/>/<separator \/>/;P;D' ~/.config/labwc/menu.xml
+          killall -SIGHUP labwc
