@@ -34,8 +34,8 @@
           app-containers/lxc seccomp
           sys-libs/libcap static-libs
 
-    - name: Install waydroid
-      ansible.builtin.command: emerge --noreplace app-containers/waydroid
+    - name: Install waydroid and android-tools
+      ansible.builtin.command: emerge --noreplace app-containers/waydroid dev-util/android-tools
       register: waydroid_install
       changed_when: "'Installing' in waydroid_install.stdout"
 
