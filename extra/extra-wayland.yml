@@ -429,4 +429,13 @@
               <keybind key="W-Return"><action name="Execute"><command>foot</command></action></keybind>
               <keybind key="A-F4"><action name="Close"/></keybind>
             </keyboard>
+            <mouse>
+              <context name="Frame">
+                <mousebind button="A-Left" action="Drag"><action name="Move"/></mousebind>
+                <mousebind button="A-Right" action="Drag"><action name="Resize"/></mousebind>
+              </context>
+            </mouse>
+            <windowRules>
+              <windowRule identifier="Waydroid" serverDecoration="yes"/>
+            </windowRules>
           </labwc_config>
