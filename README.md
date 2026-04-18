@@ -260,6 +260,13 @@ waydroid init
 ```
 
 - 起動は `waydroid show-full-ui` またはアプリランチャーから
+- ウィンドウモードで使う場合は、初期化後にセッション起動中に以下を実行：
+
+```bash
+waydroid prop set persist.waydroid.multi_windows true
+waydroid prop set persist.waydroid.width 1080
+waydroid prop set persist.waydroid.height 720
+```
 
 ## 冪等性
 
