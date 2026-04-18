@@ -116,6 +116,15 @@
             sleep 1
           fi
 
-          sed -i -n '/Waydroid ウィンドウ化/,/<\/item>/!p' ~/.config/labwc/menu.xml
-          sed -i 'N;s/<separator \/>[[:space:]]*\n[[:space:]]*<separator \/>/<separator \/>/;P;D' ~/.config/labwc/menu.xml
-          killall -SIGHUP labwc
+    - name: Create waydroid window hint desktop entry
+      ansible.builtin.copy:
+        dest: /usr/share/applications/waydroid-window-hint.desktop
+        mode: "0644"
+        content: |
+          [Desktop Entry]
+          Name=Waydroid ウィンドウ化
+          Exec=foot --title="Waydroid ウィンドウ化" --window-size-chars=60x7 waydroid-window-hint
+          Terminal=false
+          Type=Application
+          Icon=waydroid
+          Categories=System;
