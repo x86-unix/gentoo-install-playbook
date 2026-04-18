@@ -104,6 +104,24 @@
           #!/bin/sh
           echo "=== Waydroid ウィンドウ設定 ==="
           echo
+
+          # コンテナが起動していなければ、セッション再起動して待つ
+          if ! waydroid status 2>&1 | grep -q "Container:.*RUNNING"; then
+            echo "セッションを起動中..."
+            waydroid session stop >/dev/null 2>&1
+            sleep 1
+            waydroid session start >/dev/null 2>&1 &
+            for i in $(seq 30); do
+              waydroid status 2>&1 | grep -q "Container:.*RUNNING" && break
+              sleep 1
+            done
+            if ! waydroid status 2>&1 | grep -q "Container:.*RUNNING"; then
+              echo "コンテナの起動に失敗しました"
+              sleep 2
+              exit 1
+            fi
+          fi
+
           echo "現在の設定:"
           echo "  multi_windows = $(waydroid prop get persist.waydroid.multi_windows 2>/dev/null)"
           echo "  width         = $(waydroid prop get persist.waydroid.width 2>/dev/null)"
@@ -123,9 +141,9 @@
           printf "実行しますか? (Yes/no): "
           read ans
           if [ "$ans" != "no" ]; then
-            waydroid prop set persist.waydroid.multi_windows true
-            waydroid prop set persist.waydroid.width "$w"
-            waydroid prop set persist.waydroid.height "$h"
+            waydroid prop set persist.waydroid.multi_windows true 2>/dev/null
+            waydroid prop set persist.waydroid.width "$w" 2>/dev/null
+            waydroid prop set persist.waydroid.height "$h" 2>/dev/null
             echo "設定しました"
             sleep 1
           fi
@@ -137,7 +155,7 @@
         content: |
           [Desktop Entry]
           Name=Waydroid ウィンドウ化
-          Exec=foot --title="Waydroid ウィンドウ化" --window-size-chars=60x7 waydroid-window-hint
+          Exec=foot --title="Waydroid ウィンドウ化" --window-size-chars=60x7 -e waydroid-window-hint
           Terminal=false
           Type=Application
           Icon=waydroid
