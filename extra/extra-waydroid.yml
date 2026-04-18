@@ -102,16 +102,30 @@
         mode: "0755"
         content: |
           #!/bin/sh
-          HINT="waydroid prop set persist.waydroid.multi_windows true
-          waydroid prop set persist.waydroid.width 1080
-          waydroid prop set persist.waydroid.height 720"
-
-          echo "$HINT"
+          echo "=== Waydroid ウィンドウ設定 ==="
           echo
-          printf "実行しますか? (yes/No): "
+          echo "現在の設定:"
+          echo "  multi_windows = $(waydroid prop get persist.waydroid.multi_windows 2>/dev/null)"
+          echo "  width         = $(waydroid prop get persist.waydroid.width 2>/dev/null)"
+          echo "  height        = $(waydroid prop get persist.waydroid.height 2>/dev/null)"
+          echo
+          printf "幅 (空欄で1080): "
+          read w
+          printf "高さ (空欄で720): "
+          read h
+          w=${w:-1080}
+          h=${h:-720}
+          echo
+          echo "waydroid prop set persist.waydroid.multi_windows true"
+          echo "waydroid prop set persist.waydroid.width $w"
+          echo "waydroid prop set persist.waydroid.height $h"
+          echo
+          printf "実行しますか? (Yes/no): "
           read ans
-          if [ "$ans" = "yes" ]; then
-            eval "$HINT"
+          if [ "$ans" != "no" ]; then
+            waydroid prop set persist.waydroid.multi_windows true
+            waydroid prop set persist.waydroid.width "$w"
+            waydroid prop set persist.waydroid.height "$h"
             echo "設定しました"
             sleep 1
           fi
