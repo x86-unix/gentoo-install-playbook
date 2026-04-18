@@ -342,6 +342,10 @@
               <action name="Execute"><command>google-chrome-stable --ozone-platform=wayland --password-store=basic</command></action>
             </item>
             <separator />
+            <item label="Waydroid ウィンドウ化">
+              <action name="Execute"><command>foot --title="Waydroid ウィンドウ化" --window-size-chars=60x7 waydroid-window-hint</command></action>
+            </item>
+            <separator />
             <item label="終了">
               <action name="Exit" />
             </item>
