@@ -1,0 +1,276 @@
+---
+# Kernel update playbook for running Gentoo/ZFS system
+# Run after booting into the installed Gentoo (not from rescue)
+#
+# Usage:
+#   ansible-playbook -i inventory.ini tools/update-kernel.yml --ask-pass
+#
+- name: "Kernel update: build new kernel and update grub.cfg"
+  hosts: target
+  gather_facts: true
+
+  vars:
+    kernel_target_version: ""  # override with -e if needed
+    grub_keep_generations: 2   # number of kernel entries to keep in grub.cfg
+
+  tasks:
+    # --- Step 0: eix-update and version selection ---
+    - name: Run eix-update
+      ansible.builtin.command: eix-update
+      register: eix_update_result
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if eix-update not available
+      ansible.builtin.fail:
+        msg: "eix-update failed or not installed. Run: emerge app-portage/eix"
+      when: eix_update_result.rc != 0
+
+    - name: Get available gentoo-sources versions
+      ansible.builtin.shell: |
+        eix gentoo-sources | grep -oP '\(\K[0-9]+\.[0-9]+\.[0-9]+(?=\))' | sort -Vu | while read ver; do
+          if eix gentoo-sources | grep -qP "\($ver\) $ver"; then
+            echo "[stable] $ver"
+          else
+            echo "[~amd64] $ver"
+          fi
+        done
+      register: all_versions
+      changed_when: false
+
+    - name: Filter versions newer than current
+      ansible.builtin.shell: |
+        python3 << 'EOF'
+        cur = "{{ ansible_facts['kernel'] | regex_replace('-gentoo$', '') }}"
+        ca = list(map(int, cur.split('.')))
+        for line in """{{ all_versions.stdout }}""".strip().splitlines():
+            ver = line.split()[-1]
+            va = list(map(int, ver.split('.')))
+            if va > ca:
+                print(line)
+        EOF
+      register: available_versions
+      changed_when: false
+
+    - name: Show available versions
+      ansible.builtin.debug:
+        msg: "{{ ['current: ' + ansible_facts['kernel'], 'available:'] + (range(1, available_versions.stdout_lines | length + 1) | list | zip(available_versions.stdout_lines) | map('join', ') ') | list) }}"
+
+    - name: Select kernel version
+      ansible.builtin.pause:
+        prompt: "Enter number to select version"
+      register: version_choice
+      when: kernel_target_version == ""
+
+    - name: Set kernel_target_version from selection
+      ansible.builtin.set_fact:
+        kernel_target_version: >-
+          {{ available_versions.stdout_lines[version_choice.user_input | int - 1].split(' ')[1] }}
+      when: kernel_target_version == ""
+
+    - name: Confirm selected version
+      ansible.builtin.debug:
+        msg: "Selected: {{ kernel_target_version }}"
+
+    # --- Step 1: Install new kernel sources ---
+    - name: Accept ~amd64 for gentoo-sources if unstable version selected
+      ansible.builtin.copy:
+        dest: /etc/portage/package.accept_keywords/gentoo-sources
+        content: "=sys-kernel/gentoo-sources-{{ kernel_target_version }} ~amd64\n"
+        mode: "0644"
+      when: "'~amd64' in (available_versions.stdout_lines | select('search', kernel_target_version) | list | first | default(''))"
+
+    - name: Install target kernel sources
+      ansible.builtin.command: >
+        emerge --noreplace
+        =sys-kernel/gentoo-sources-{{ kernel_target_version }}
+      register: ksrc_emerge
+      changed_when: "'Installing' in ksrc_emerge.stdout"
+
+    - name: Set kernel symlink to new version
+      ansible.builtin.command: >
+        eselect kernel set linux-{{ kernel_target_version }}-gentoo
+      changed_when: false
+
+    - name: Set kernel version facts
+      ansible.builtin.set_fact:
+        new_kver: "{{ kernel_target_version }}-gentoo"
+        new_ksrc: "/usr/src/linux-{{ kernel_target_version }}-gentoo"
+
+    # --- Step 2: Check if already built ---
+    - name: Check if new kernel already installed
+      ansible.builtin.shell: >
+        ls /boot/kernel-{{ new_kver }} /boot/initramfs-{{ new_kver }}.img
+        /lib/modules/{{ new_kver }}/extra/zfs.ko* 2>/dev/null | wc -l
+      register: already_built
+      changed_when: false
+
+    - name: Show build decision
+      ansible.builtin.debug:
+        msg: "{{ 'Already built, skipping build' if already_built.stdout | int == 3 else 'Building new kernel' }}"
+
+    - name: Get nproc
+      ansible.builtin.command: nproc
+      register: nproc
+      changed_when: false
+
+    # --- Step 3: Build ---
+    - name: Build new kernel
+      when: already_built.stdout | int < 3
+      block:
+        - name: Copy current kernel config as base
+          ansible.builtin.shell: zcat /proc/config.gz > {{ new_ksrc }}/.config
+          changed_when: false
+
+        - name: Olddefconfig
+          ansible.builtin.command: make -C {{ new_ksrc }} olddefconfig
+          changed_when: false
+
+        - name: Build kernel
+          ansible.builtin.command: >
+            make -C {{ new_ksrc }} -j{{ nproc.stdout }}
+            CC="ccache gcc" bzImage modules
+          async: 7200
+          poll: 30
+
+        - name: Install modules
+          ansible.builtin.command: make -C {{ new_ksrc }} modules_install
+          changed_when: false
+
+        - name: Install kernel
+          ansible.builtin.command: make -C {{ new_ksrc }} install
+          changed_when: false
+
+        # --- Step 4: ZFS module ---
+        - name: Rebuild ZFS module for new kernel
+          ansible.builtin.command: emerge --oneshot @module-rebuild
+          changed_when: false
+
+        - name: Verify ZFS module exists
+          ansible.builtin.shell: >
+            find /lib/modules/{{ new_kver }} -name zfs.ko* | head -1
+          register: zfs_mod
+          failed_when: zfs_mod.stdout == ""
+
+    # --- Step 5: initramfs ---
+    - name: Ensure dracut ZFS config exists
+      ansible.builtin.copy:
+        dest: /etc/dracut.conf.d/zfs.conf
+        mode: "0644"
+        content: |
+          add_dracutmodules+=" zfs "
+          omit_dracutmodules+=" btrfs "
+          force_drivers+=" zfs spl "
+          install_items+=" /etc/zfs/zpool.cache "
+        force: false
+
+    - name: Ensure zpool.cache is up to date
+      ansible.builtin.command: zpool set cachefile=/etc/zfs/zpool.cache rpool
+      changed_when: false
+
+    - name: Generate initramfs
+      ansible.builtin.command: >
+        dracut --force --add zfs --kver {{ new_kver }}
+        /boot/initramfs-{{ new_kver }}.img
+      changed_when: false
+
+    # --- Step 6: grub.cfg (keep old entries) ---
+    - name: Detect boot mode
+      ansible.builtin.stat:
+        path: /sys/firmware/efi
+      register: efi_check
+
+    - name: Set boot mode
+      ansible.builtin.set_fact:
+        boot_mode: "{{ 'uefi' if efi_check.stat.exists else 'bios' }}"
+
+    - name: Find kernels that have both kernel and initramfs in /boot
+      ansible.builtin.shell: |
+        for k in $(ls /boot/kernel-* 2>/dev/null | sort -V); do
+          kname=$(basename $k | sed 's/^kernel-//')
+          [ -f /boot/initramfs-${kname}.img ] && echo $k
+        done
+      register: all_kernels
+      changed_when: false
+
+    - name: Build grub menuentry list
+      ansible.builtin.set_fact:
+        grub_entries: >-
+          {{ all_kernels.stdout_lines | reverse | list | list }}
+      vars:
+        _all: "{{ all_kernels.stdout_lines | reverse | list }}"
+
+    - name: Trim to grub_keep_generations
+      ansible.builtin.set_fact:
+        grub_entries: "{{ grub_entries[:grub_keep_generations | int] }}"
+
+    - name: Write grub.cfg with all kernel entries
+      ansible.builtin.copy:
+        dest: /boot/grub/grub.cfg
+        mode: "0644"
+        content: |
+          set default=0
+          set timeout=5
+
+          insmod part_gpt
+          insmod zfs
+          {% if boot_mode == 'uefi' %}
+          insmod fat
+          insmod efi_gop
+          insmod efi_uga
+          {% endif %}
+
+          {% for kpath in grub_entries %}
+          {% set kname = kpath | basename | regex_replace('^kernel-', '') %}
+          menuentry "Gentoo - {{ kname }}{{ ' (fallback)' if not loop.first else '' }}" {
+              search --no-floppy --label --set=root rpool
+              linux /ROOT/gentoo@/boot/kernel-{{ kname }} root=zfs:rpool/ROOT/gentoo
+              initrd /ROOT/gentoo@/boot/initramfs-{{ kname }}.img
+          }
+          {% endfor %}
+
+    - name: Show grub.cfg
+      ansible.builtin.command: cat /boot/grub/grub.cfg
+      register: grub_cfg
+      changed_when: false
+
+    - name: Display grub.cfg
+      ansible.builtin.debug:
+        var: grub_cfg.stdout_lines
+
+    # --- Step 7: reboot ---
+    - name: Show new kernel and initramfs
+      ansible.builtin.shell: |
+        echo "kernel    : $(ls -lh /boot/kernel-{{ new_kver }})"
+        echo "initramfs : $(ls -lh /boot/initramfs-{{ new_kver }}.img)"
+      register: new_boot_files
+      changed_when: false
+
+    - name: Show ZFS module
+      ansible.builtin.shell: find /lib/modules/{{ new_kver }} -name zfs.ko* | head -1
+      register: new_zfs_mod
+      changed_when: false
+
+    - name: Show hostid
+      ansible.builtin.command: hostid
+      register: current_hostid
+      changed_when: false
+
+    - name: Report
+      ansible.builtin.debug:
+        msg:
+          - "{{ new_boot_files.stdout_lines[0] }}"
+          - "{{ new_boot_files.stdout_lines[1] }}"
+          - "zfs.ko    : {{ new_zfs_mod.stdout }}"
+          - "hostid    : {{ current_hostid.stdout }}"
+          - "hostname  : {{ ansible_facts['hostname'] }}"
+
+    - name: Confirm reboot
+      ansible.builtin.pause:
+        prompt: "\n\e[1;32mKernel {{ new_kver }} ready.\e[0m Type \e[1;32myes\e[0m to reboot now"
+      register: reboot_prompt
+
+    - name: Reboot
+      ansible.builtin.shell: "nohup sh -c 'sleep 2 && reboot' &"
+      changed_when: false
+      when: reboot_prompt.user_input == 'yes'
