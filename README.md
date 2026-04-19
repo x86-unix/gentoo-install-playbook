@@ -280,6 +280,33 @@ waydroid prop set persist.waydroid.height 720
 | base-06 | GRUB が MBR/EFI にインストール済み、grub.cfg が同一 |
 | base-07 | 毎回実行（パスワード設定）。reboot は確認後のみ |
 
+## rescue 環境から手動 chroot する場合
+
+`zfs mount` はデフォルトで mountpoint プロパティ通りにマウントする。`rpool/ROOT/gentoo` の mountpoint は `/` なので、そのままマウントすると rescue の `/proc` `/sys` `/dev` を上書きし、systemd が ABRT でクラッシュ・freeze する。
+
+必ず mountpoint を `/mnt/gentoo` に変えてから mount すること：
+
+```bash
+zpool import -f -N rpool
+zfs set mountpoint=/mnt/gentoo rpool/ROOT/gentoo
+zfs set mountpoint=/mnt/gentoo/home rpool/home
+zfs mount rpool/ROOT/gentoo
+zfs mount rpool/home
+
+mount --rbind /dev  /mnt/gentoo/dev
+mount --rbind /proc /mnt/gentoo/proc
+mount --rbind /sys  /mnt/gentoo/sys
+
+chroot /mnt/gentoo /bin/bash
+```
+
+作業後は mountpoint を元に戻す：
+
+```bash
+zfs set mountpoint=/ rpool/ROOT/gentoo
+zfs set mountpoint=/home rpool/home
+```
+
 ## 注意事項
 
 - rpool が存在しないディスクに対しては確認なしでパーティションが作成される
