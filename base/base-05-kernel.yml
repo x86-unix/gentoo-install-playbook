@@ -279,6 +279,11 @@
         zpool set cachefile={{ mountpoint }}/etc/zfs/zpool.cache rpool
       changed_when: false
 
+    - name: Generate hostid (fixes hostid mismatch on first boot)
+      ansible.builtin.command: "{{ chroot }} 'zgenhostid'"
+      args:
+        creates: "{{ mountpoint }}/etc/hostid"
+
     - name: Generate initramfs
       ansible.builtin.command: >
         {{ chroot }} 'dracut --force --add zfs --kver {{ kernel_version }} /boot/initramfs-{{ kernel_version }}.img'
