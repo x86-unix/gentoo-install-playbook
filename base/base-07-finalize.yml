@@ -59,6 +59,12 @@
       ansible.builtin.command: zpool set bootfs=rpool/ROOT/gentoo rpool
       changed_when: false
 
+    # --- Fix hostid mismatch (pool was created in live env with different hostid) ---
+    - name: Generate hostid in target system
+      ansible.builtin.command: "{{ chroot }} 'zgenhostid'"
+      args:
+        creates: "{{ mountpoint }}/etc/hostid"
+
     # --- Regenerate zpool.cache before reboot ---
     - name: Regenerate zpool.cache
       ansible.builtin.shell: |
