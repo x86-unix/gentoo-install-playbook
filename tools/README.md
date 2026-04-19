@@ -2,7 +2,7 @@
 
 起動済みの Gentoo システムに対して実行するメンテナンス用 playbook。
 
-`base/` や `extra/` と異なり、rescue 環境や chroot は不要。SSH でログインできる状態であれば実行可能。
+`base/` と異なり、rescue 環境や chroot は不要。SSH でログインできる状態であれば実行可能。
 
 ## 一覧
 
