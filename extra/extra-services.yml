@@ -22,3 +22,10 @@
         name: cronie
         enabled: true
         state: started
+
+    - name: Schedule daily portage update at 03:00
+      ansible.builtin.cron:
+        name: daily portage update
+        minute: "0"
+        hour: "3"
+        job: "/usr/bin/eix-sync -q && /usr/bin/emerge -uDN --quiet @world >> /var/log/auto-update.log 2>&1"
