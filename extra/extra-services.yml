@@ -28,4 +28,4 @@
         name: daily portage update
         minute: "0"
         hour: "3"
-        job: "{ echo \"=== $(date) ==="; /usr/bin/eix-sync; /usr/bin/emerge -uDN --verbose @world; echo \"=== done ==="; } >> /var/log/auto-update.log 2>&1"
+        job: '{ echo "=== $(date) ==="; /usr/bin/eix-sync; /usr/bin/emerge -uDN --verbose @world; echo "=== done ==="; } >> /var/log/auto-update.log 2>&1'
