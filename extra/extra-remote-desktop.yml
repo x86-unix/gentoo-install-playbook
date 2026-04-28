@@ -1,13 +1,21 @@
 ---
-# wayvnc (Wayland VNC server) + novnc (WebSocket bridge)
-# Access: http://<host>:6080/vnc.html
+# wayvnc (Wayland VNC server) + novnc (WebSocket bridge) + Apache HTTPS + OTP
+# Access: https://<host>/
 # Usage: ansible-playbook -i inventory.ini extra/extra-remote-desktop.yml --ask-pass
 
-- name: "Extra: Remote Desktop (wayvnc + novnc)"
+- name: "Extra: Remote Desktop (wayvnc + novnc + Apache HTTPS + OTP)"
   hosts: target
   gather_facts: false
+  become: true
+
+  handlers:
+    - name: reload apache2
+      ansible.builtin.service:
+        name: apache2
+        state: reloaded
 
   tasks:
+    # ── wayvnc / novnc ────────────────────────────────────────────────────────
     - name: Accept ~amd64 keyword for wayvnc
       ansible.builtin.copy:
         dest: /etc/portage/package.accept_keywords/wayvnc
@@ -32,7 +40,7 @@
         owner: "{{ default_user }}"
         mode: "0700"
 
-    - name: Configure wayvnc (no auth)
+    - name: Configure wayvnc (localhost only, no auth — Apache handles auth)
       ansible.builtin.copy:
         dest: /home/{{ default_user }}/.config/wayvnc/config
         owner: "{{ default_user }}"
@@ -42,7 +50,7 @@
           address=127.0.0.1
           enable_auth=false
 
-    - name: Create novnc systemd service
+    - name: Create novnc systemd service (localhost only)
       ansible.builtin.copy:
         dest: /etc/systemd/system/novnc.service
         mode: "0644"
@@ -52,7 +60,7 @@
           After=network.target
 
           [Service]
-          ExecStart=/usr/bin/websockify --web /usr/share/novnc 6080 127.0.0.1:5900
+          ExecStart=/usr/bin/websockify --web /usr/share/novnc 127.0.0.1:6080 127.0.0.1:5900
           Restart=on-failure
 
           [Install]
@@ -64,4 +72,167 @@
         enabled: true
         state: started
         daemon_reload: true
+
+    # ── Apache + mod_authn_otp ────────────────────────────────────────────────
+    - name: Set Apache USE flags (proxy + proxy_http + proxy_wstunnel)
+      ansible.builtin.copy:
+        dest: /etc/portage/package.use/apache
+        mode: "0644"
+        content: |
+          www-servers/apache apache2_modules_proxy apache2_modules_proxy_http apache2_modules_proxy_wstunnel
+
+    - name: Install Apache
+      ansible.builtin.command: emerge --noreplace www-servers/apache
+      register: result
+      changed_when: "'Installing' in result.stdout"
+
+    - name: Install build deps for mod_authn_otp
+      ansible.builtin.command: emerge --noreplace sys-auth/oath-toolkit dev-vcs/git
+      register: result
+      changed_when: "'Installing' in result.stdout"
+
+    - name: Clone mod-authn-otp
+      ansible.builtin.git:
+        repo: https://github.com/archiecobbs/mod-authn-otp
+        dest: /usr/local/src/mod-authn-otp
+        update: false
+
+    - name: Build and install mod_authn_otp
+      ansible.builtin.shell: |
+        cd /usr/local/src/mod-authn-otp
+        ./autogen.sh -c
+        make install
+      args:
+        creates: /usr/lib64/apache2/modules/mod_authn_otp.so
+
+    - name: Load mod_authn_otp in Apache
+      ansible.builtin.copy:
+        dest: /etc/apache2/modules.d/00-otp.conf
+        mode: "0644"
+        content: |
+          LoadModule authn_otp_module modules/mod_authn_otp.so
+      notify: reload apache2
+
+    - name: Enable required Apache modules via APACHE2_OPTS
+      ansible.builtin.lineinfile:
+        path: /etc/conf.d/apache2
+        regexp: '^APACHE2_OPTS='
+        line: 'APACHE2_OPTS="-D DEFAULT_VHOST -D INFO -D SSL -D SSL_DEFAULT_VHOST -D LANGUAGE -D PROXY"'
+      notify: reload apache2
+
+    # ── TLS 自己署名証明書 ────────────────────────────────────────────────────
+    - name: Ensure Apache SSL directory
+      ansible.builtin.file:
+        path: /etc/ssl/apache2
+        state: directory
+        mode: "0700"
+
+    - name: Generate self-signed certificate
+      ansible.builtin.command: >
+        openssl req -x509 -nodes -days 3650
+        -newkey rsa:2048
+        -keyout /etc/ssl/apache2/server.key
+        -out /etc/ssl/apache2/server.crt
+        -subj "/CN={{ default_hostname }}"
+      args:
+        creates: /etc/ssl/apache2/server.crt
+
+    # ── OTP ユーザーファイル ──────────────────────────────────────────────────
+    - name: Ensure OTP users directory
+      ansible.builtin.file:
+        path: /var/www/otp
+        state: directory
+        owner: apache
+        group: apache
+        mode: "0750"
+
+    - name: Ensure OTP users file exists
+      ansible.builtin.copy:
+        dest: /var/www/otp/users
+        content: ""
+        force: false
+        owner: apache
+        group: apache
+        mode: "0640"
+
+    - name: Deploy OTP registration script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/novnc-otp-register
+        mode: "0755"
+        content: |
+          #!/bin/bash -e
+          user=${1:?Usage: $0 username}
+          issuer="noVNC-$(hostname -s)"
+          secret=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 15 | head -n 1)
+          secret_base16=$(python3 -c "import base64; print(base64.b16encode('${secret}'.encode('utf-8')).decode('utf-8'))")
+          secret_base32=$(python3 -c "import base64; print(base64.b32encode('${secret}'.encode('utf-8')).decode('utf-8'))")
+          otpauth_uri="otpauth://totp/${issuer}:${user}?secret=${secret_base32}&issuer=${issuer}"
+          otpauth_uri=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${otpauth_uri}'))")
+          file="/var/www/otp/users"
+          count=$(awk "\$2 ~ /^${user}$/" ${file} | wc -l)
+          if [ $count -le 0 ]; then
+            echo "HOTP/T30 $(printf '%-12s' $user) - ${secret_base16}" >> ${file}
+            echo "QR code URL:"
+            echo "https://api.qrserver.com/v1/create-qr-code/?data=${otpauth_uri}"
+          else
+            echo "User '${user}' already exists"
+          fi
+
+    # ── Apache vhost 設定 ─────────────────────────────────────────────────────
+    - name: Blank out default vhost configs
+      ansible.builtin.copy:
+        dest: "{{ item }}"
+        content: ""
+        mode: "0644"
+      loop:
+        - /etc/apache2/vhosts.d/00_default_vhost.conf
+        - /etc/apache2/vhosts.d/00_default_ssl_vhost.conf
+        - /etc/apache2/vhosts.d/default_vhost.include
+      notify: reload apache2
+
+    - name: Deploy noVNC Apache vhost (HTTPS + OTP)
+      ansible.builtin.copy:
+        dest: /etc/apache2/vhosts.d/novnc.conf
+        mode: "0644"
+        content: |
+          Listen 0.0.0.0:443
+
+          <VirtualHost _default_:443>
+              ServerName {{ default_hostname }}
+              ServerAdmin admin@localhost
+
+              ErrorLog /var/log/apache2/ssl_error_log
+              TransferLog /var/log/apache2/ssl_access_log
+
+              SSLEngine on
+              SSLCertificateFile /etc/ssl/apache2/server.crt
+              SSLCertificateKeyFile /etc/ssl/apache2/server.key
+
+              ProxyPass /websockify ws://localhost:6080/websockify
+              ProxyPassReverse /websockify ws://localhost:6080/websockify
+              ProxyPass / http://localhost:6080/
+              ProxyPassReverse / http://localhost:6080/
+
+              RewriteEngine On
+              RewriteRule ^/$ /vnc.html [R,L]
+
+              <Location />
+                  AuthType Basic
+                  AuthName "OTP Authentication"
+                  AuthBasicProvider OTP
+                  Require valid-user
+                  OTPAuthUsersFile /var/www/otp/users
+                  OTPAuthMaxLinger 28800
+                  OTPAuthMaxOTPFailure 20
+                  OTPAuthPINAuthProvider file
+                  OTPAuthLogoutOnIPChange On
+              </Location>
+          </VirtualHost>
+      notify: reload apache2
+
+    - name: Enable and start Apache
+      ansible.builtin.service:
+        name: apache2
+        enabled: true
+        state: started
 

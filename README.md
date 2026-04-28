@@ -34,7 +34,7 @@ extra/
   extra-wayland.yml        # Wayland デスクトップ（labwc + waybar + foot + wofi）
   extra-ime.yml            # IME（fcitx5 + SKK、gentoo-zh overlay）
   extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode, yazi、GURU overlay）
-  extra-remote-desktop.yml # リモートデスクトップ（wayvnc + noVNC）
+  extra-remote-desktop.yml # リモートデスクトップ（wayvnc + noVNC + Apache HTTPS + OTP）
   extra-waydroid.yml       # Android コンテナ（Waydroid、GURU overlay）
 
 group_vars/target.yml      # 共通設定値
@@ -242,10 +242,47 @@ ansible-vault encrypt_string 'your_password' --name 'wifi_password'
 
 ## リモートデスクトップ
 
-- `extra-remote-desktop.yml` で wayvnc（Wayland VNC サーバ）+ noVNC（WebSocket ブリッジ）をインストール
-- labwc autostart で `wayvnc` が自動起動し、`novnc.service` が WebSocket ブリッジを提供
-- ブラウザから `http://<host>:6080/vnc.html` でアクセス可能
-- デフォルトは認証なし・localhost バインド（`127.0.0.1:5900`）
+- `extra-remote-desktop.yml` で wayvnc + noVNC + Apache（HTTPS リバースプロキシ + OTP 認証）をインストール
+- labwc autostart で `wayvnc` が自動起動し、`novnc.service` が `127.0.0.1:6080` でブリッジを提供
+- Apache が HTTPS(443) で公開し、OTP 認証（TOTP）を前段で実施する
+- ブラウザから `https://<host>/` でアクセス（自己署名証明書のため初回警告あり）
+- noVNC は `127.0.0.1:6080` にバインドされ、外部から直接アクセス不可
+
+### OTP ユーザー登録
+
+playbook 実行後、ターゲットホストで以下を実行する：
+
+```bash
+novnc-otp-register <username>
+```
+
+出力された QR コード URL をブラウザで開き、Google Authenticator 等に登録する。
+
+```bash
+# 登録済みユーザー確認
+cat /var/www/otp/users
+```
+
+登録後、ブラウザから `https://<host>/` にアクセスし、ユーザー名と 6 桁のワンタイムパスワードを入力する。認証通過後に noVNC 画面が表示される。
+
+- OTP セッションは 8 時間有効（`OTPAuthMaxLinger 28800`）
+- 証明書を Let's Encrypt 等に差し替える場合は `/etc/ssl/apache2/server.{crt,key}` を置き換えて `systemctl restart apache2`
+
+### ポートバインド確認
+
+```bash
+ss -ltpn | grep -E ':(443|6080|5900)'
+```
+
+正常な状態：
+
+```
+0.0.0.0:443    ← Apache（外部公開、HTTPS + OTP）
+127.0.0.1:6080 ← novnc（ローカルのみ）
+127.0.0.1:5900 ← wayvnc（ローカルのみ）
+```
+
+`6080` や `5900` が `0.0.0.0` にバインドされている場合は外部から直接アクセス可能になるため危険。`systemctl restart novnc` で修正する。
 
 ## Waydroid
 
