@@ -1,0 +1,73 @@
+---
+# ARM translation setup for Waydroid (libndk)
+# Prerequisites: waydroid init 済み、waydroid session RUNNING
+# Usage: ansible-playbook -i inventory.ini extra/extra-waydroid-arm.yml --limit <host> --ask-pass
+
+- name: "Extra: Waydroid ARM translation"
+  hosts: target
+  gather_facts: false
+  become: yes
+
+  tasks:
+    - name: Install git (required for waydroid_script)
+      ansible.builtin.command: emerge --noreplace dev-vcs/git
+      changed_when: false
+
+    - name: Clone waydroid_script
+      ansible.builtin.git:
+        repo: https://github.com/casualsnek/waydroid_script
+        dest: /opt/waydroid_script
+        version: main
+
+    - name: Install pip
+      ansible.builtin.command: emerge --noreplace dev-python/pip
+      changed_when: false
+
+    - name: Install waydroid_script dependencies
+      ansible.builtin.command: pip install -r /opt/waydroid_script/requirements.txt --break-system-packages
+      changed_when: false
+
+    - name: Create waydroid-arm-setup script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/waydroid-arm-setup
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          set -e
+          echo "=== Waydroid ARM translation setup ==="
+
+          if [ "$(id -u)" -ne 0 ]; then
+            echo "ERROR: root privileges required."
+            echo "Run: sudo waydroid-arm-setup"
+            exit 1
+          fi
+          if [ ! -f /var/lib/waydroid/images/system.img ]; then
+            echo "ERROR: waydroid is not initialized."
+            echo "Run: waydroid init"
+            exit 1
+          fi
+
+          if ! waydroid status 2>&1 | grep -q "Container:.*RUNNING"; then
+            echo "ERROR: waydroid container is not running."
+            echo "Run: waydroid session start"
+            exit 1
+          fi
+
+          cd /opt/waydroid_script
+          python3 main.py install libndk
+
+          echo "Restarting waydroid session..."
+          echo "  Run as your user (not sudo):"
+          echo "  waydroid session stop && waydroid session start"
+          echo
+          echo "=== ARM translation check ==="
+          abilist=$(waydroid prop get ro.product.cpu.abilist 2>/dev/null)
+          echo "  ro.product.cpu.abilist = $abilist"
+          echo
+          if echo "$abilist" | grep -q "armeabi"; then
+            echo "OK: ARM translation is active"
+          else
+            echo "WARN: could not confirm ARM translation (session may still be starting)"
+            echo "Check manually after session is fully started:"
+            echo "  waydroid prop get ro.product.cpu.abilist"
+          fi

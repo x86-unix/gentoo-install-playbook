@@ -36,6 +36,7 @@ extra/
   extra-gui-tools.yml      # GUI ツール（Google Chrome, VSCode, yazi、GURU overlay）
   extra-remote-desktop.yml # リモートデスクトップ（wayvnc + noVNC + Apache HTTPS + OTP）
   extra-waydroid.yml       # Android コンテナ（Waydroid、GURU overlay）
+  extra-waydroid-arm.yml   # ARM translation セットアップスクリプト配置（libndk）
 
 group_vars/target.yml      # 共通設定値
 host_vars/<IP>.yml         # ホスト固有設定（disk, hostname 等）
@@ -304,6 +305,27 @@ waydroid prop set persist.waydroid.multi_windows true
 waydroid prop set persist.waydroid.width 1080
 waydroid prop set persist.waydroid.height 720
 ```
+
+### ARM アプリを動かす（libndk ARM translation）
+
+x86_64 ホスト上で ARM アプリを動かすには ARM トランスレーションレイヤーが必要。
+`extra-waydroid-arm.yml` で `/usr/local/bin/waydroid-arm-setup` スクリプトを配置する。
+
+前提条件：
+- `waydroid init` 済み
+- `waydroid session start` でコンテナが RUNNING 状態
+
+スクリプト実行：
+
+```bash
+sudo waydroid-arm-setup
+```
+
+実行内容：
+1. 前提条件チェック（init 済み・RUNNING）
+2. libndk インストール（`/opt/waydroid_script` を使用）
+3. session 再起動
+4. ARM translation 有効確認（`ro.product.cpu.abilist` に `armeabi` が含まれれば OK）
 
 ## 冪等性
 

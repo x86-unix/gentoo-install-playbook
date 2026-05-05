@@ -34,5 +34,8 @@
 - name: Import waydroid
   ansible.builtin.import_playbook: extra/extra-waydroid.yml
 
+- name: Import waydroid ARM translation
+  ansible.builtin.import_playbook: extra/extra-waydroid-arm.yml
+
 - name: Import GUI tools
   ansible.builtin.import_playbook: extra/extra-gui-tools.yml
