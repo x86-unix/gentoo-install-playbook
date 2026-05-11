@@ -446,6 +446,11 @@
             </keyboard>
             <mouse>
               <default />
+              <context name="Root">
+                <mousebind button="Right" action="Press">
+                  <action name="ShowMenu" menu="root-menu"/>
+                </mousebind>
+              </context>
               <context name="Frame">
                 <mousebind button="A-Left" action="Drag"><action name="Move"/></mousebind>
                 <mousebind button="A-Right" action="Drag"><action name="Resize"/></mousebind>
