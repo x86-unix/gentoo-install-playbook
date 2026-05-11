@@ -461,4 +461,7 @@
                 <action name="MoveTo" x="0" y="0" />
               </windowRule>
             </windowRules>
+          <placement>
+            <policy>cursor</policy>
+          </placement>
           </labwc_config>
