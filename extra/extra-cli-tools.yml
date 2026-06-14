@@ -15,3 +15,20 @@
     - name: Set default editor to vim
       ansible.builtin.command: eselect editor set vi
       changed_when: false
+
+    - name: Enable stowe-verlay overlay
+      ansible.builtin.include_role:
+        name: overlay
+      vars:
+        overlay_name: stowe-verlay
+
+    - name: Accept kiro-cli-bin keyword
+      ansible.builtin.copy:
+        dest: /etc/portage/package.accept_keywords/kiro
+        content: "dev-util/kiro-cli-bin **\n"
+        mode: "0644"
+
+    - name: Install kiro-cli-bin
+      ansible.builtin.command: emerge --noreplace dev-util/kiro-cli-bin
+      register: _kiro_install
+      changed_when: "'Installing' in _kiro_install.stdout"
