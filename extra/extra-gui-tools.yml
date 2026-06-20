@@ -18,7 +18,6 @@
         mode: "0644"
         content: |
           www-client/google-chrome google-chrome
-          app-editors/vscode Microsoft-vscode
 
     - name: Accept ~amd64 keyword for yazi
       ansible.builtin.copy:
@@ -36,8 +35,8 @@
           dev-qt/qtbase opengl wayland
           dev-qt/qtdeclarative opengl
 
-    - name: Install google-chrome and vscode
-      ansible.builtin.command: emerge --noreplace www-client/google-chrome app-editors/vscode x11-themes/papirus-icon-theme media-video/mpv media-gfx/imv app-misc/yazi media-fonts/nerd-fonts x11-apps/xrandr media-gfx/flameshot gui-apps/grim
+    - name: Install google-chrome and gui tools
+      ansible.builtin.command: emerge --noreplace www-client/google-chrome x11-themes/papirus-icon-theme media-video/mpv media-gfx/imv app-misc/yazi media-fonts/nerd-fonts x11-apps/xrandr media-gfx/flameshot gui-apps/grim
       register: gui_install
       changed_when: "'Installing' in gui_install.stdout"
 
@@ -97,19 +96,6 @@
           Icon=google-chrome
           Categories=Network;WebBrowser;
 
-    - name: Override VSCode desktop for Wayland
-      ansible.builtin.copy:
-        dest: /usr/share/applications/code.desktop
-        mode: "0644"
-        content: |
-          [Desktop Entry]
-          Name=Visual Studio Code
-          Exec=/opt/vscode/code --ozone-platform=wayland %F
-          Terminal=false
-          Type=Application
-          Icon=vscode
-          Categories=Development;
-
     - name: Create yazi desktop entry
       ansible.builtin.copy:
         dest: /usr/share/applications/yazi.desktop
@@ -155,7 +141,6 @@
         - footclient.desktop
         - gcr-prompter.desktop
         - gcr-viewer.desktop
-        - code-url-handler.desktop
         - fcitx5-wayland-launcher.desktop
         - assistant.desktop
         - com.google.Chrome.desktop
